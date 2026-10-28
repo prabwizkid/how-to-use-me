@@ -2,6 +2,8 @@
 
 Make "how to use" instructions for anything — a parking pay station, a tram ticket machine, a horse cart, a fridge, a suitcase lock, a speaker, a plant — and stick a printed QR label on it. Anyone who scans the label sees the instructions.
 
+**Live app:** https://prabwizkid.github.io/how-to-use-me/ (open it on your phone, then "Add to Home Screen")
+
 ## What it does
 
 | Brief says | How the app does it |
@@ -21,6 +23,14 @@ npm run serve        # then open http://localhost:8080 on your phone/computer
 ```
 
 For QR codes to work with other phones' cameras, host the `www/` folder on any HTTPS static host (GitHub Pages, Netlify, Cloudflare Pages) and put that address in **Cloud & Settings → Public web address**. The app is also installable from the browser (Add to Home Screen).
+
+## Updating the live site
+
+The site is served by GitHub Pages from the `gh-pages` branch, which holds the contents of `www/`. After changing `www/`, commit and run:
+
+```
+git subtree split --prefix www -b gh-pages && git push origin gh-pages
+```
 
 ## Publish to Google Play / App Store (Capacitor)
 

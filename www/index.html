@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f6feb">
+<title>How To Use Me</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <strong class="brand">How To Use Me</strong>
+    <nav>
+      <button data-nav="library" id="nav-library">Library</button>
+      <button data-nav="edit" id="nav-new">+ New</button>
+      <button data-nav="scan" id="nav-scan">Scan QR</button>
+      <button data-nav="settings" id="nav-settings">Cloud &amp; Settings</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- LIBRARY -->
+    <section id="view-library" class="view">
+      <h2>My instructions</h2>
+      <div class="row">
+        <input id="search" type="search" placeholder="Search (fridge, tram, parking…)" aria-label="Search">
+      </div>
+      <div class="row">
+        <label class="btn">Import guide / backup file
+          <input id="import-input" type="file" accept=".html,.htm,.json,text/html,application/json" multiple hidden>
+        </label>
+        <button id="print-all-labels">Print QR labels for all</button>
+      </div>
+      <ul id="guide-list" class="list"></ul>
+      <p id="empty-library" class="muted">No instructions yet. Tap “+ New” to make your first one.</p>
+    </section>
+
+    <!-- EDITOR -->
+    <section id="view-edit" class="view" hidden>
+      <h2 id="edit-heading">New instructions</h2>
+
+      <fieldset>
+        <legend>1. Capture the instructions (any way you like)</legend>
+        <div class="row">
+          <label class="btn">📷 Take photo
+            <input id="in-camera" type="file" accept="image/*" capture="environment" hidden>
+          </label>
+          <label class="btn">🖼️ Upload screenshot / photos
+            <input id="in-images" type="file" accept="image/*" multiple hidden>
+          </label>
+          <label class="btn">📄 Upload file (PDF, text, HTML)
+            <input id="in-file" type="file" accept=".pdf,.txt,.md,.html,.htm,application/pdf,text/plain,text/markdown,text/html,image/*" multiple hidden>
+          </label>
+        </div>
+        <label class="check"><input id="ocr-toggle" type="checkbox" checked> Read the text in photos/screenshots and turn it into steps</label>
+        <p class="muted small">Tip: on a computer you can also paste a screenshot or text here with Ctrl/Cmd+V.</p>
+        <p id="capture-status" class="status" aria-live="polite"></p>
+      </fieldset>
+
+      <fieldset>
+        <legend>2. Check and edit</legend>
+        <label>What is it called?<input id="f-title" type="text" placeholder="e.g. How to pay at the parking lot"></label>
+        <label>Item / object<input id="f-item" type="text" placeholder="e.g. Parking pay station, Samsung fridge, tram ticket machine"></label>
+        <label>Where is it? (optional)<input id="f-location" type="text" placeholder="e.g. Level 2, Garage B"></label>
+        <label>Steps — one step per line<textarea id="f-steps" rows="10" placeholder="Press the green button&#10;Insert your ticket&#10;Pay by card"></textarea></label>
+        <label>Notes / warnings (optional)<textarea id="f-notes" rows="3"></textarea></label>
+        <label>Cloud link to this guide (optional)
+          <input id="f-cloud" type="url" placeholder="https://drive.google.com/… or Dropbox / OneDrive / iCloud link">
+        </label>
+        <p class="muted small">After you save the guide to your cloud (Share → Drive, Dropbox, iCloud, OneDrive…), paste its share link here. Long guides that can't fit inside the QR code will then open from your cloud on any phone.</p>
+        <div id="photo-list" class="photos"></div>
+      </fieldset>
+
+      <div class="row sticky-actions">
+        <button id="save-guide" class="primary">Save &amp; make QR code</button>
+        <button id="preview-guide">Preview page</button>
+        <button id="cancel-edit">Cancel</button>
+      </div>
+      <iframe id="preview-frame" title="Preview" hidden></iframe>
+    </section>
+
+    <!-- GUIDE VIEWER -->
+    <section id="view-guide" class="view" hidden>
+      <div id="unsaved-banner" class="banner" hidden>
+        This guide came from a QR code and isn't in your library yet.
+        <button id="save-scanned" class="primary">Save to my library</button>
+      </div>
+      <div class="row actions" id="guide-actions">
+        <button id="act-qr" class="primary">QR code</button>
+        <button id="act-share">Share / save to cloud</button>
+        <button id="act-download">Download HTML</button>
+        <button id="act-print">Print page</button>
+        <button id="act-edit">Edit</button>
+        <button id="act-delete" class="danger">Delete</button>
+      </div>
+      <div id="qr-panel" class="qr-panel" hidden>
+        <img id="qr-img" alt="QR code for this guide">
+        <p id="qr-note" class="small"></p>
+        <div class="row">
+          <button id="qr-print" class="primary">Print QR label</button>
+          <button id="qr-download">Download QR image</button>
+          <button id="qr-share">Share QR image</button>
+          <button id="qr-copy-link">Copy / share link</button>
+        </div>
+      </div>
+      <iframe id="guide-frame" title="Instructions" sandbox="allow-same-origin allow-modals"></iframe>
+    </section>
+
+    <!-- SCANNER -->
+    <section id="view-scan" class="view" hidden>
+      <h2>Scan a QR label</h2>
+      <div class="scanbox">
+        <video id="scan-video" playsinline muted></video>
+        <canvas id="scan-canvas" hidden></canvas>
+      </div>
+      <p id="scan-status" class="status" aria-live="polite"></p>
+      <div class="row">
+        <button id="scan-start" class="primary">Start camera</button>
+        <button id="scan-stop">Stop</button>
+        <label class="btn">Scan from a photo
+          <input id="scan-file" type="file" accept="image/*" hidden>
+        </label>
+      </div>
+      <div id="scan-result"></div>
+    </section>
+
+    <!-- SETTINGS / CLOUD -->
+    <section id="view-settings" class="view" hidden>
+      <h2>Cloud, backup &amp; settings</h2>
+      <fieldset>
+        <legend>Back up or move everything</legend>
+        <p class="small">Save one backup file to any cloud you use (Google Drive, Dropbox, iCloud Drive, OneDrive, Box…) or send it to a friend. Open it on another phone with “Restore”.</p>
+        <div class="row">
+          <button id="backup-share" class="primary">Save backup to cloud / share</button>
+          <button id="backup-download">Download backup file</button>
+          <label class="btn">Restore from backup
+            <input id="restore-input" type="file" accept=".json,.html,.htm,application/json,text/html" multiple hidden>
+          </label>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>QR code address</legend>
+        <label>Public web address of this app (used inside QR codes)
+          <input id="set-url" type="url" placeholder="https://your-site.example/how-to-use-me/">
+        </label>
+        <p class="small muted">Phones that scan a label with their normal camera open this address. Leave empty to use the address this app is running from.</p>
+        <p id="url-warning" class="warn small" hidden></p>
+        <button id="set-save">Save settings</button>
+      </fieldset>
+      <fieldset>
+        <legend>Storage on this phone</legend>
+        <p id="storage-info" class="small"></p>
+        <button id="clear-all" class="danger">Delete all guides on this phone</button>
+      </fieldset>
+    </section>
+  </main>
+
+  <div id="toast" role="status" aria-live="polite" hidden></div>
+</div>
+
+<!-- Only visible when printing QR labels -->
+<div id="print-area"></div>
+
+<script src="vendor/qrcode.js"></script>
+<script src="vendor/jsQR.js"></script>
+<script src="vendor/pako.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

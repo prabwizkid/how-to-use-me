@@ -1,0 +1,33 @@
+{
+  "name": "how-to-use-me",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "serve": "python3 -m http.server 8080 -d www",
+    "test": "python3 tests/e2e.py",
+    "android": "npx cap add android && npx cap sync android && npx cap open android",
+    "ios": "npx cap add ios && npx cap sync ios && npx cap open ios"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@tesseract.js-data/eng": "^1.0.0",
+    "jsqr": "^1.4.0",
+    "pako": "^3.0.3",
+    "pdfjs-dist": "^4.10.38",
+    "qrcode-generator": "^2.0.4",
+    "tesseract.js": "^7.0.0",
+    "tesseract.js-core": "^7.0.0",
+    "@capacitor/core": "^7.0.0",
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/ios": "^7.0.0",
+    "@capacitor/filesystem": "^7.0.0",
+    "@capacitor/share": "^7.0.0"
+  },
+  "private": true,
+  "devDependencies": {
+    "@capacitor/cli": "^7.0.0"
+  }
+}

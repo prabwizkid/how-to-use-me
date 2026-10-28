@@ -1,0 +1,6 @@
+Bluetooth speaker
+
+- Hold the power button for 3 seconds
+- Hold the BT button until it blinks blue
+  (it can take a few seconds)
+- Pick "BOOM-2" on your phone

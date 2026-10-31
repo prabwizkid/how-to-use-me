@@ -146,29 +146,31 @@ function splitTitle(text) {
 }
 
 /* --------------------------------------------------------- guide → HTML */
-// The page people see after scanning a label: a yellow placard header and big numbered steps.
+// The page people see after scanning a label: clean iOS look, numbered steps on a white card.
 const GUIDE_CSS = `
 *{box-sizing:border-box}
-body{margin:0;font:18px/1.5 'Archivo Variable','Archivo',system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#1D2B3A;background:#fff}
-header{background:#FFC928;padding:28px 20px 22px}
-header .in,main{max-width:720px;margin:0 auto}
-h1{margin:0;font-size:30px;line-height:1.08;font-weight:800;font-stretch:118%;letter-spacing:-.01em;overflow-wrap:anywhere}
-.meta{display:flex;flex-wrap:wrap;gap:4px 18px;margin:12px 0 0;padding:0;list-style:none;font-size:15px}
-.meta b{font-weight:700}
-main{padding:8px 20px 28px}
-ol.steps{padding:0;margin:0;list-style:none;counter-reset:s}
-ol.steps>li{counter-increment:s;display:grid;grid-template-columns:44px 1fr;gap:14px;padding:18px 0;border-bottom:2px solid #E3E6EA}
-ol.steps>li::before{content:counter(s);display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;background:#1D2B3A;color:#fff;font-size:20px;font-weight:800;font-stretch:112%}
-ol.steps .tx{align-self:center;font-size:19px;line-height:1.4}
+body{margin:0;font:17px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;letter-spacing:-.2px;color:#000;background:#F2F2F7;-webkit-font-smoothing:antialiased}
+header{padding:28px 20px 6px}
+header .in,main{max-width:680px;margin:0 auto}
+h1{margin:0;font:700 30px/1.15 -apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,sans-serif;letter-spacing:.3px;overflow-wrap:anywhere}
+.meta{margin:8px 0 0;padding:0;list-style:none;color:rgba(60,60,67,.6);font-size:15px}
+.meta b{font-weight:500;color:#000}
+main{padding:14px 16px 32px}
+ol.steps{margin:0;padding:0;list-style:none;counter-reset:s;background:#fff;border-radius:12px;overflow:hidden}
+ol.steps>li{counter-increment:s;position:relative;display:grid;grid-template-columns:30px 1fr;gap:12px;padding:14px 16px}
+ol.steps>li+li::after{content:"";position:absolute;top:0;left:58px;right:0;height:.5px;background:rgba(60,60,67,.2)}
+ol.steps>li::before{content:counter(s);display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:#007AFF;color:#fff;font-size:15px;font-weight:600}
+ol.steps .tx{align-self:center}
 ol.steps img{grid-column:2;display:block;max-width:100%;border-radius:10px;margin-top:4px}
-.notes{margin:22px 0 0;padding:14px 16px;border:2px solid #1D2B3A;border-left-width:8px;border-radius:10px;white-space:pre-wrap;font-size:17px}
-.notes b{display:block;font-stretch:112%;margin-bottom:2px}
-.photos{margin-top:24px}.photos h2{font-size:18px;font-stretch:112%;margin:0 0 8px}
-.photos img{display:block;max-width:100%;border-radius:10px;margin-top:10px}
-.empty{color:#5B6673;padding:18px 0}
-footer{margin-top:28px;color:#5B6673;font-size:13px}
-@media (min-width:640px){h1{font-size:40px}header{padding:40px 24px 30px}}
-@media print{header{-webkit-print-color-adjust:exact;print-color-adjust:exact}ol.steps>li{break-inside:avoid}}
+.notes{margin:16px 0 0;padding:14px 16px;background:#fff;border-radius:12px;white-space:pre-wrap;font-size:15px}
+.notes b{display:block;font-size:13px;font-weight:600;color:#FF9500;margin-bottom:2px}
+.photos{margin-top:22px}.photos h2{font-size:13px;font-weight:400;color:rgba(60,60,67,.6);margin:0 16px 7px}
+.photos img{display:block;max-width:100%;border-radius:12px;margin-top:10px}
+.empty{color:rgba(60,60,67,.6);padding:16px}
+footer{margin:22px 16px 0;color:rgba(60,60,67,.6);font-size:13px}
+@media (min-width:640px){h1{font-size:34px}}
+@media (prefers-color-scheme:dark){body{background:#000;color:#fff}.meta{color:rgba(235,235,245,.6)}.meta b{color:#fff}ol.steps,.notes{background:#1C1C1E}ol.steps>li+li::after{background:rgba(84,84,88,.65)}ol.steps>li::before{background:#0A84FF}.photos h2,footer,.empty{color:rgba(235,235,245,.6)}}
+@media print{body{background:#fff}ol.steps>li{break-inside:avoid}}
 `;
 
 function buildGuideHtml(g) {
@@ -203,7 +205,7 @@ ${meta ? `<ul class="meta">${meta}</ul>` : ''}
 </div></header>
 <main>
 ${stepsHtml}
-${g.notes ? `<div class="notes"><b>Good to know</b>${esc(g.notes)}</div>` : ''}
+${g.notes ? `<div class="notes"><b>Note</b>${esc(g.notes)}</div>` : ''}
 ${loose.length ? `<section class="photos"><h2>Photos</h2>${loose.map(img).join('')}</section>` : ''}
 <footer>Made with How To Use Me. Updated ${esc(new Date(g.updatedAt || Date.now()).toLocaleDateString())}.</footer>
 </main>
@@ -302,15 +304,13 @@ function qrCanvas(text, title, sub) {
     if (q.isDark(r, col)) x.fillRect((col + quiet) * cell, (r + quiet) * cell, cell, cell);
   }
   if (title) {
-    const face = "'Archivo Variable', system-ui, sans-serif";
+    const face = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
     x.textAlign = 'center';
-    x.fillStyle = '#1D2B3A';
-    if ('fontStretch' in x) x.fontStretch = 'semi-expanded';
-    x.font = `800 ${Math.round(labelH * 0.34)}px ${face}`;
+    x.fillStyle = '#000';
+    x.font = `700 ${Math.round(labelH * 0.34)}px ${face}`;
     x.fillText(fitText(x, title, size * 0.92), size / 2, size + labelH * 0.32);
-    if ('fontStretch' in x) x.fontStretch = 'normal';
-    x.font = `500 ${Math.round(labelH * 0.24)}px ${face}`;
-    x.fillStyle = '#5B6673';
+    x.font = `400 ${Math.round(labelH * 0.24)}px ${face}`;
+    x.fillStyle = '#6C6C70';
     x.fillText(fitText(x, sub || 'Scan to see how to use this', size * 0.92), size / 2, size + labelH * 0.72);
   }
   return c;
@@ -328,7 +328,7 @@ function miniQr(g) {
     c.width = c.height = n * 2;
     const x = c.getContext('2d');
     x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height);
-    x.fillStyle = '#1D2B3A';
+    x.fillStyle = '#000';
     for (let r = 0; r < n; r++) for (let col = 0; col < n; col++) if (q.isDark(r, col)) x.fillRect(col * 2, r * 2, 2, 2);
     src = c.toDataURL('image/png');
   } catch (e) { /* too long: tag shows without a code */ }
@@ -608,7 +608,7 @@ function renderSteps(focusIndex) {
       <div class="step-ctl">
         <button type="button" data-act="up" aria-label="Move step ${i + 1} up"${i === 0 ? ' disabled' : ''}><svg class="ico"><use href="#i-up"/></svg></button>
         <button type="button" data-act="down" aria-label="Move step ${i + 1} down"${i === d.steps.length - 1 ? ' disabled' : ''}><svg class="ico"><use href="#i-down"/></svg></button>
-        <button type="button" data-act="del" aria-label="Delete step ${i + 1}"><svg class="ico"><use href="#i-x"/></svg></button>
+        <button type="button" data-act="del" aria-label="Delete step ${i + 1}"><svg class="ico"><use href="#i-minus"/></svg></button>
       </div>${thumbs ? `<div class="step-thumbs">${thumbs}</div>` : ''}`;
     const ta = $('textarea', li);
     ta.value = text;
@@ -673,13 +673,14 @@ function renderPhotoList() {
   const d = APP.draft;
   const box = $('#photo-list');
   box.innerHTML = '';
+  $('#photos-section').hidden = d.photos.length === 0;
   d.photos.forEach((p, idx) => {
     const div = document.createElement('div');
     div.className = 'photo';
     div.dataset.id = p.id;
-    const opts = ['<option value="">Show at the end</option>']
+    const opts = ['<option value="">Show at the End</option>']
       .concat(d.steps.map((s, i) => `<option value="${i}"${p.step === i ? ' selected' : ''}>Step ${i + 1}${s ? ': ' + esc(s.slice(0, 28)) : ''}</option>`));
-    div.innerHTML = `<img src="${p.src}" alt="Photo ${idx + 1}"><select aria-label="Where to show photo ${idx + 1}">${opts.join('')}</select><button type="button" class="btn quiet small rm">Remove photo</button>`;
+    div.innerHTML = `<img src="${p.src}" alt="Photo ${idx + 1}"><select aria-label="Where to show photo ${idx + 1}">${opts.join('')}</select><button type="button" class="rm">Remove</button>`;
     $('.rm', div).onclick = () => { readEditor(); d.photos = d.photos.filter(x => x.id !== p.id); renderSteps(); renderPhotoList(); };
     $('select', div).onchange = () => { readEditor(); renderSteps(); };
     box.appendChild(div);
@@ -689,7 +690,7 @@ function openEditor(g) {
   stopScan();
   const d = g ? JSON.parse(JSON.stringify(g)) : emptyDraft();
   fillEditor(d);
-  $('#edit-heading').textContent = g ? 'Edit guide' : 'New guide';
+  $('#edit-heading').textContent = g ? 'Edit Guide' : 'New Guide';
   setStatus($('#capture-status'), '');
   $('#preview-frame').hidden = true;
   show('edit');
@@ -717,7 +718,7 @@ async function saveDraft() {
     return;
   }
   APP.draft = null;
-  toast('Guide saved. Here’s its label.');
+  toast('Saved. Here’s your label.');
   await showGuide(g, true);
   showQrPanel();
 }
@@ -729,10 +730,10 @@ function frameFit(frame) {
     if (doc && doc.documentElement) frame.style.height = Math.max(300, doc.documentElement.scrollHeight + 20) + 'px';
   } catch (e) { /* cross-origin, ignore */ }
 }
-function renderInFrame(frame, html) {
-  // Pages saved to files use the phone's own fonts; inside the app we lend them the app's typeface.
-  const font = new URL('fonts/archivo.woff2', location.href).href;
-  html = html.replace('</head>', `<style>@font-face{font-family:'Archivo Variable';font-weight:100 900;font-stretch:62% 125%;src:url(${font}) format('woff2')}</style></head>`);
+function renderInFrame(frame, html, embedded) {
+  // In the guide screen the app already shows the title, so the page drops its own header
+  // and background and its steps sit directly on the screen.
+  if (embedded) html = html.replace('</head>', '<style>:root{color-scheme:light dark}header{display:none}body{background:transparent!important}main{padding:0 0 4px}</style></head>');
   frame.onload = () => {
     frameFit(frame);
     try { $$('img', frame.contentDocument).forEach(i => i.addEventListener('load', () => frameFit(frame))); } catch (e) { /* ignore */ }
@@ -747,10 +748,13 @@ async function showGuide(g, saved) {
   $('#unsaved-banner').hidden = !!saved;
   $('#act-edit').hidden = !saved;
   $('#act-delete').hidden = !saved;
+  $('#guide-manage').hidden = !saved;
   $('#qr-panel').hidden = true;
   $('#act-qr').classList.remove('open');
   $('#guide-title').textContent = g.title;
-  renderInFrame($('#guide-frame'), g.html);
+  $('#guide-nav-title').textContent = g.title;
+  $('#guide-sub').textContent = [g.item, g.location].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(', ');
+  renderInFrame($('#guide-frame'), g.html, true);
   show('guide');
 }
 function showQrPanel() {
@@ -785,7 +789,7 @@ function printLabels(guides) {
     try { src = qrCanvas(guideQrInfo(g).url).toDataURL('image/png'); } catch (e) { console.warn('label failed', g.id, e); continue; }
     const div = document.createElement('div');
     div.className = 'label';
-    div.innerHTML = `<span class="hole"></span><img src="${src}" alt="QR code"><div class="lt">${esc(g.title)}</div>${g.location || g.item ? `<div class="ls">${esc(g.location || g.item)}</div>` : ''}<div class="lc">Scan to see how to use this</div>`;
+    div.innerHTML = `<img src="${src}" alt="QR code"><div class="lt">${esc(g.title)}</div>${g.location || g.item ? `<div class="ls">${esc(g.location || g.item)}</div>` : ''}<div class="lc">Scan to see how to use this</div>`;
     grid.appendChild(div);
   }
   const imgs = $$('img', area);
@@ -797,14 +801,14 @@ async function startScan() {
   const st = $('#scan-status');
   $('#scan-result').innerHTML = '';
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    setStatus(st, 'This browser can’t use the camera. Use “Scan a photo instead”.', true);
+    setStatus(st, 'This browser can’t use the camera. Use Scan from Photo.', true);
     return;
   }
   stopScan();
   try {
     APP.scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
   } catch (e) {
-    setStatus(st, 'Camera blocked or not found. Allow camera access in your browser settings, or use “Scan a photo instead”.', true);
+    setStatus(st, 'Camera blocked or not found. Allow camera access in Settings, or use Scan from Photo.', true);
     return;
   }
   const v = $('#scan-video');
@@ -903,7 +907,7 @@ async function handleScanned(text, fromLink) {
     show('scan');
     setStatus(st, 'This guide is stored in the owner’s cloud.');
     const r = $('#scan-result');
-    r.innerHTML = '<a class="btn primary" id="open-cloud" target="_blank" rel="noopener">Open the instructions</a><p>To keep it, download the page there and import it in Guides.</p>';
+    r.innerHTML = '<a class="btn filled" id="open-cloud" target="_blank" rel="noopener">Open Instructions</a><p>To keep it, download the page there and import it in Guides.</p>';
     $('#open-cloud').href = info.u;
     if (!fromLink) window.open(info.u, '_blank', 'noopener');
     return true;
@@ -925,30 +929,31 @@ async function renderLibrary() {
   ul.innerHTML = '';
   for (const g of list) {
     const li = document.createElement('li');
-    li.className = 'tag';
+    li.className = 'guide-row';
     li.dataset.id = g.id;
     li.tabIndex = 0;
     li.setAttribute('role', 'button');
     const qr = miniQr(g);
-    const sub = [g.item, g.location].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i);
-    li.innerHTML = `<div><div class="t">${esc(g.title)}</div>${sub.map(v => `<div class="s">${esc(v)}</div>`).join('')}<div class="n">${g.steps.length} step${g.steps.length === 1 ? '' : 's'}</div></div>${qr ? `<img class="mini-qr" src="${qr}" alt="">` : ''}`;
+    const where = g.location || g.item;
+    const sub = `${g.steps.length} step${g.steps.length === 1 ? '' : 's'}${where ? ' · ' + where : ''}`;
+    li.innerHTML = `${qr ? `<span class="thumb"><img src="${qr}" alt=""></span>` : `<span class="thumb none"><svg class="ico"><use href="#i-guides"/></svg></span>`}<span class="txt"><span class="t">${esc(g.title)}</span><span class="s" style="display:block">${esc(sub)}</span></span><svg class="ico chev"><use href="#i-chev"/></svg>`;
     li.onclick = () => showGuide(g, true);
     li.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showGuide(g, true); } };
     ul.appendChild(li);
   }
-  $('#lib-count').textContent = all.length ? `${all.length} on this phone` : '';
+  $('#lib-count').textContent = list.length ? `${list.length} guide${list.length === 1 ? '' : 's'}` : '';
   $('.search').hidden = all.length === 0;
-  $('.lib-tools').querySelector('#print-all-labels').hidden = all.length === 0;
+  $('#print-all-row').hidden = all.length === 0;
   const empty = $('#empty-library');
   empty.hidden = all.length > 0 && list.length > 0;
   $('#empty-actions').hidden = all.length > 0;
-  $('.blank-tag', empty).hidden = all.length > 0;
+  $('.empty-icon', empty).hidden = all.length > 0;
   if (!all.length) {
-    $('#empty-title').textContent = 'No guides yet';
-    $('#empty-text').textContent = 'Photograph the instructions on a machine, a manual or a sign. The app reads the text and turns it into steps you can print as a QR label.';
+    $('#empty-title').textContent = 'No Guides Yet';
+    $('#empty-text').textContent = 'Take a photo of any instructions. The text becomes steps you can print as a QR label.';
   } else if (!list.length) {
     $('#empty-title').textContent = 'Nothing matches “' + q + '”';
-    $('#empty-text').textContent = 'Try a shorter word, like the name of the machine.';
+    $('#empty-text').textContent = 'Check the spelling or try a shorter word.';
   }
 }
 async function makeBackupBlob() {
@@ -972,7 +977,7 @@ async function importFiles(fileList) {
         else throw new Error('not a How To Use Me backup');
       } else {
         const g = guideFromHtml(text);
-        if (!g) throw new Error('not a page made with How To Use Me. To turn another page into a guide, tap New, then “A manual or file”');
+        if (!g) throw new Error('not a page made with How To Use Me. To turn another page into a guide, tap New, then Import PDF or File');
         guides = [g];
       }
       for (const g of guides) {
@@ -995,8 +1000,9 @@ async function importFiles(fileList) {
 }
 
 /* ---------------------------------------------------------- confirm box */
-function askConfirm(text, okLabel) {
+function askConfirm(text, okLabel, title) {
   const dlg = $('#confirm-dialog');
+  $('#confirm-title').textContent = title || 'Are you sure?';
   $('#confirm-text').textContent = text;
   $('#confirm-ok').textContent = okLabel || 'Delete';
   dlg.returnValue = '';
@@ -1017,6 +1023,7 @@ function show(name) {
     if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
   });
   document.body.classList.toggle('editing', name === 'edit');
+  document.body.classList.remove('scrolled');
   if (name === 'library') renderLibrary();
   if (name === 'settings') renderSettings();
   window.scrollTo(0, 0);
@@ -1033,9 +1040,9 @@ async function renderSettings() {
   const n = (await dbAll()).length;
   let usage = '';
   if (navigator.storage && navigator.storage.estimate) {
-    try { const e = await navigator.storage.estimate(); usage = ` Using ${(e.usage / 1048576).toFixed(1)} MB.`; } catch (e) { /* ignore */ }
+    try { const e = await navigator.storage.estimate(); usage = `, ${(e.usage / 1048576).toFixed(1)} MB`; } catch (e) { /* ignore */ }
   }
-  $('#storage-info').textContent = `${n} guide${n === 1 ? '' : 's'} saved on this phone.${usage}`;
+  $('#storage-info').textContent = `${n} guide${n === 1 ? '' : 's'}${usage}`;
 }
 
 /* ------------------------------------------------------------------ wire */
@@ -1078,6 +1085,9 @@ function wire() {
     $(b.dataset.start === 'camera' ? '#in-camera' : '#in-images').click();
   }));
   $('#guide-back').addEventListener('click', () => show('library'));
+  $('#lib-add').addEventListener('click', () => openEditor(null));
+  // Like iOS: the small title fades into the bar once the large title scrolls away.
+  window.addEventListener('scroll', () => document.body.classList.toggle('scrolled', window.scrollY > 36), { passive: true });
   $('#save-guide').addEventListener('click', saveDraft);
   $('#preview-guide').addEventListener('click', () => {
     const d = normalizeGuide(readEditor());
@@ -1103,7 +1113,7 @@ function wire() {
   });
   $('#act-edit').addEventListener('click', () => openEditor(APP.viewing));
   $('#act-delete').addEventListener('click', async () => {
-    if (!(await askConfirm('Delete “' + APP.viewing.title + '” from this phone? Printed labels for it will stop opening here.', 'Delete guide'))) return;
+    if (!(await askConfirm('“' + APP.viewing.title + '” will be removed from this phone. Labels that hold their steps inside the code still work.', 'Delete', 'Delete Guide?'))) return;
     await dbDel(APP.viewing.id);
     toast('Guide deleted.');
     show('library');
@@ -1167,7 +1177,7 @@ function wire() {
   $('#clear-all').addEventListener('click', async () => {
     const n = (await dbAll()).length;
     if (!n) return toast('There are no guides to delete.');
-    if (!(await askConfirm(`Delete all ${n} guides on this phone? Save a backup first if you want to keep them.`, 'Delete all'))) return;
+    if (!(await askConfirm(`All ${n} guides will be removed from this phone. Back up first if you want to keep them.`, 'Delete All', 'Delete All Guides?'))) return;
     await dbClear();
     toast('All guides deleted.');
     renderSettings();
@@ -1191,9 +1201,6 @@ async function main() {
     throw e;
   }
   APP.settings = Object.assign({ publicUrl: '' }, (await kvGet('settings')) || {});
-  if (document.fonts && document.fonts.load) {
-    try { await Promise.race([document.fonts.load("800 20px 'Archivo Variable'"), new Promise(r => setTimeout(r, 1500))]); } catch (e) { /* system font is fine */ }
-  }
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
   const opened = await handleIncomingLink();
   if (!opened) show('library');

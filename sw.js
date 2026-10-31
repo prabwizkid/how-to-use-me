@@ -1,6 +1,6 @@
 // Offline support: core files cached on install; OCR/PDF engines cached the first time they're used.
-const VERSION = 'htu-v2';
-const CORE = ['./', 'index.html', 'app.css', 'app.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'fonts/archivo.woff2',
+const VERSION = 'htu-v3';
+const CORE = ['./', 'index.html', 'app.css', 'app.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png',
   'vendor/qrcode.js', 'vendor/jsQR.js', 'vendor/pako.min.js'];
 
 self.addEventListener('install', e => {

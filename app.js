@@ -41,6 +41,8 @@ function toast(msg, ms = 3500) {
 function setStatus(el, msg, isErr) {
   el.textContent = msg || '';
   el.classList.toggle('error', !!isErr);
+  // Show a spinner while work is still going on ("Reading text… 40%").
+  el.classList.toggle('busy', !isErr && /…(\s*\d+%)?$/.test(msg || ''));
 }
 function loadScript(src) {
   return new Promise((res, rej) => {
@@ -144,20 +146,29 @@ function splitTitle(text) {
 }
 
 /* --------------------------------------------------------- guide → HTML */
+// The page people see after scanning a label: a yellow placard header and big numbered steps.
 const GUIDE_CSS = `
-*{box-sizing:border-box}body{margin:0;font:17px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#1b1f24;background:#fff}
-main{max-width:760px;margin:0 auto;padding:18px}
-.kicker{margin:0;color:#1f6feb;font-weight:700;text-transform:uppercase;letter-spacing:.06em;font-size:13px}
-h1{margin:4px 0 6px;font-size:26px;line-height:1.2}
-.meta{margin:0 0 16px;color:#57606a}
+*{box-sizing:border-box}
+body{margin:0;font:18px/1.5 'Archivo Variable','Archivo',system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#1D2B3A;background:#fff}
+header{background:#FFC928;padding:28px 20px 22px}
+header .in,main{max-width:720px;margin:0 auto}
+h1{margin:0;font-size:30px;line-height:1.08;font-weight:800;font-stretch:118%;letter-spacing:-.01em;overflow-wrap:anywhere}
+.meta{display:flex;flex-wrap:wrap;gap:4px 18px;margin:12px 0 0;padding:0;list-style:none;font-size:15px}
+.meta b{font-weight:700}
+main{padding:8px 20px 28px}
 ol.steps{padding:0;margin:0;list-style:none;counter-reset:s}
-ol.steps>li{counter-increment:s;position:relative;padding:10px 0 12px 46px;border-bottom:1px solid #eaeef2}
-ol.steps>li::before{content:counter(s);position:absolute;left:0;top:8px;width:32px;height:32px;border-radius:50%;background:#1f6feb;color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center}
-ol.steps img,.photos img{display:block;max-width:100%;border-radius:8px;margin-top:8px}
-.notes{background:#fff8c5;border:1px solid #d4a72c;border-radius:8px;padding:10px 12px;margin:16px 0;white-space:pre-wrap}
-.photos{margin-top:16px}
-footer{margin-top:24px;color:#8c959f;font-size:13px}
-@media print{main{padding:0}ol.steps>li{break-inside:avoid}}
+ol.steps>li{counter-increment:s;display:grid;grid-template-columns:44px 1fr;gap:14px;padding:18px 0;border-bottom:2px solid #E3E6EA}
+ol.steps>li::before{content:counter(s);display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;background:#1D2B3A;color:#fff;font-size:20px;font-weight:800;font-stretch:112%}
+ol.steps .tx{align-self:center;font-size:19px;line-height:1.4}
+ol.steps img{grid-column:2;display:block;max-width:100%;border-radius:10px;margin-top:4px}
+.notes{margin:22px 0 0;padding:14px 16px;border:2px solid #1D2B3A;border-left-width:8px;border-radius:10px;white-space:pre-wrap;font-size:17px}
+.notes b{display:block;font-stretch:112%;margin-bottom:2px}
+.photos{margin-top:24px}.photos h2{font-size:18px;font-stretch:112%;margin:0 0 8px}
+.photos img{display:block;max-width:100%;border-radius:10px;margin-top:10px}
+.empty{color:#5B6673;padding:18px 0}
+footer{margin-top:28px;color:#5B6673;font-size:13px}
+@media (min-width:640px){h1{font-size:40px}header{padding:40px 24px 30px}}
+@media print{header{-webkit-print-color-adjust:exact;print-color-adjust:exact}ol.steps>li{break-inside:avoid}}
 `;
 
 function buildGuideHtml(g) {
@@ -169,7 +180,7 @@ function buildGuideHtml(g) {
     else loose.push(p);
   });
   const img = p => `<img data-photo-id="${esc(p.id)}" src="${p.src}" alt="Photo">`;
-  const meta = [g.item, g.location].filter(Boolean).map(esc).join(' · ');
+  const meta = [g.item && `<li><b>For:</b> ${esc(g.item)}</li>`, g.location && `<li><b>Where:</b> ${esc(g.location)}</li>`].filter(Boolean).join('');
   const data = {
     app: 'how-to-use-me', v: 1, id: g.id, title: g.title, item: g.item, location: g.location,
     steps: g.steps, notes: g.notes, cloudUrl: g.cloudUrl || '',
@@ -178,21 +189,23 @@ function buildGuideHtml(g) {
   };
   const json = JSON.stringify(data).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
   const stepsHtml = g.steps.length
-    ? `<ol class="steps">${g.steps.map((s, i) => `<li><div>${esc(s)}</div>${(byStep[i] || []).map(img).join('')}</li>`).join('')}</ol>`
-    : '<p>(No steps yet)</p>';
+    ? `<ol class="steps">${g.steps.map((s, i) => `<li><div class="tx">${esc(s)}</div>${(byStep[i] || []).map(img).join('')}</li>`).join('')}</ol>`
+    : '<p class="empty">No steps yet.</p>';
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>How to use: ${esc(g.title || g.item || 'Instructions')}</title>
 <style>${GUIDE_CSS}</style></head>
-<body><main>
-<p class="kicker">How to use</p>
+<body>
+<header><div class="in">
 <h1>${esc(g.title || g.item || 'Instructions')}</h1>
-${meta ? `<p class="meta">${meta}</p>` : ''}
+${meta ? `<ul class="meta">${meta}</ul>` : ''}
+</div></header>
+<main>
 ${stepsHtml}
-${g.notes ? `<div class="notes"><strong>Notes:</strong> ${esc(g.notes)}</div>` : ''}
+${g.notes ? `<div class="notes"><b>Good to know</b>${esc(g.notes)}</div>` : ''}
 ${loose.length ? `<section class="photos"><h2>Photos</h2>${loose.map(img).join('')}</section>` : ''}
-<footer>Made with How To Use Me · updated ${esc(new Date(g.updatedAt || Date.now()).toLocaleDateString())}</footer>
+<footer>Made with How To Use Me. Updated ${esc(new Date(g.updatedAt || Date.now()).toLocaleDateString())}.</footer>
 </main>
 <script type="application/json" id="htu-data">${json}</script>
 </body></html>`;
@@ -289,14 +302,38 @@ function qrCanvas(text, title, sub) {
     if (q.isDark(r, col)) x.fillRect((col + quiet) * cell, (r + quiet) * cell, cell, cell);
   }
   if (title) {
+    const face = "'Archivo Variable', system-ui, sans-serif";
     x.textAlign = 'center';
-    x.font = `600 ${Math.round(labelH * 0.34)}px system-ui, sans-serif`;
+    x.fillStyle = '#1D2B3A';
+    if ('fontStretch' in x) x.fontStretch = 'semi-expanded';
+    x.font = `800 ${Math.round(labelH * 0.34)}px ${face}`;
     x.fillText(fitText(x, title, size * 0.92), size / 2, size + labelH * 0.32);
-    x.font = `${Math.round(labelH * 0.24)}px system-ui, sans-serif`;
-    x.fillStyle = '#444';
-    x.fillText(fitText(x, sub || 'Scan me to see how to use this', size * 0.92), size / 2, size + labelH * 0.72);
+    if ('fontStretch' in x) x.fontStretch = 'normal';
+    x.font = `500 ${Math.round(labelH * 0.24)}px ${face}`;
+    x.fillStyle = '#5B6673';
+    x.fillText(fitText(x, sub || 'Scan to see how to use this', size * 0.92), size / 2, size + labelH * 0.72);
   }
   return c;
+}
+/** Small QR shown on each tag in the library. Cached so scrolling stays smooth. */
+const miniQrCache = new Map();
+function miniQr(g) {
+  const key = g.id + ':' + g.updatedAt + ':' + appBase();
+  if (miniQrCache.has(key)) return miniQrCache.get(key);
+  let src = '';
+  try {
+    const q = qrModules(guideQrInfo(g).url);
+    const n = q.getModuleCount();
+    const c = document.createElement('canvas');
+    c.width = c.height = n * 2;
+    const x = c.getContext('2d');
+    x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height);
+    x.fillStyle = '#1D2B3A';
+    for (let r = 0; r < n; r++) for (let col = 0; col < n; col++) if (q.isDark(r, col)) x.fillRect(col * 2, r * 2, 2, 2);
+    src = c.toDataURL('image/png');
+  } catch (e) { /* too long: tag shows without a code */ }
+  miniQrCache.set(key, src);
+  return src;
 }
 function fitText(ctx, t, w) {
   t = String(t);
@@ -460,6 +497,7 @@ function addTextToDraft(text) {
   let { title, rest } = splitTitle(text);
   if (title && !d.title) d.title = title; else rest = title ? title + '\n' + rest : rest;
   const steps = textToSteps(rest);
+  compactSteps(d);
   d.steps = d.steps.concat(steps);
   fillEditor(d);
   return steps.length;
@@ -531,12 +569,13 @@ async function handleCaptureFiles(fileList, source) {
 function emptyDraft() {
   return { id: newId(), title: '', item: '', location: '', steps: [], notes: '', cloudUrl: '', photos: [], createdAt: Date.now(), updatedAt: Date.now(), _new: true };
 }
+/** Pulls what's on screen into APP.draft. Empty step rows are kept while editing. */
 function readEditor() {
   const d = APP.draft || emptyDraft();
   d.title = $('#f-title').value.trim();
   d.item = $('#f-item').value.trim();
   d.location = $('#f-location').value.trim();
-  d.steps = $('#f-steps').value.split('\n').map(s => s.trim()).filter(Boolean);
+  if ($('#step-list').dataset.rendered === '1') d.steps = $$('#step-list .step-text').map(t => t.value.trim());
   d.notes = $('#f-notes').value.trim();
   d.cloudUrl = $('#f-cloud').value.trim();
   $$('#photo-list .photo').forEach(div => {
@@ -551,10 +590,84 @@ function fillEditor(d) {
   $('#f-title').value = d.title;
   $('#f-item').value = d.item;
   $('#f-location').value = d.location;
-  $('#f-steps').value = d.steps.join('\n');
   $('#f-notes').value = d.notes;
   $('#f-cloud').value = d.cloudUrl || '';
+  renderSteps();
   renderPhotoList();
+}
+function autosize(t) { t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; }
+function renderSteps(focusIndex) {
+  const d = APP.draft;
+  const ol = $('#step-list');
+  ol.innerHTML = '';
+  d.steps.forEach((text, i) => {
+    const li = document.createElement('li');
+    li.className = 'step-row';
+    const thumbs = d.photos.filter(p => p.step === i).map(p => `<img src="${p.src}" alt="">`).join('');
+    li.innerHTML = `<textarea class="step-text" rows="1" aria-label="Step ${i + 1}" placeholder="Describe this step"></textarea>
+      <div class="step-ctl">
+        <button type="button" data-act="up" aria-label="Move step ${i + 1} up"${i === 0 ? ' disabled' : ''}><svg class="ico"><use href="#i-up"/></svg></button>
+        <button type="button" data-act="down" aria-label="Move step ${i + 1} down"${i === d.steps.length - 1 ? ' disabled' : ''}><svg class="ico"><use href="#i-down"/></svg></button>
+        <button type="button" data-act="del" aria-label="Delete step ${i + 1}"><svg class="ico"><use href="#i-x"/></svg></button>
+      </div>${thumbs ? `<div class="step-thumbs">${thumbs}</div>` : ''}`;
+    const ta = $('textarea', li);
+    ta.value = text;
+    ta.addEventListener('input', () => autosize(ta));
+    ta.addEventListener('keydown', e => {
+      // Enter at the end of a step starts a new one, like a checklist app.
+      if (e.key === 'Enter' && !e.shiftKey && ta.selectionStart === ta.value.length) {
+        e.preventDefault();
+        readEditor();
+        insertStep(i + 1);
+      }
+    });
+    li.addEventListener('click', e => {
+      const b = e.target.closest('button[data-act]');
+      if (!b) return;
+      readEditor();
+      if (b.dataset.act === 'del') deleteStep(i);
+      else moveStep(i, b.dataset.act === 'up' ? -1 : 1);
+    });
+    ol.appendChild(li);
+  });
+  ol.dataset.rendered = '1';
+  $('#steps-empty').hidden = d.steps.length > 0;
+  // Focus right away so the first letters typed aren't lost; size rows once laid out.
+  if (Number.isInteger(focusIndex)) { const t = $$('#step-list .step-text')[focusIndex]; if (t) t.focus(); }
+  requestAnimationFrame(() => $$('#step-list .step-text').forEach(autosize));
+}
+// Photos are attached to steps by index, so they move with their step.
+function remapPhotoSteps(d, map) {
+  d.photos.forEach(p => { if (Number.isInteger(p.step)) p.step = map(p.step); });
+}
+function insertStep(at) {
+  const d = APP.draft;
+  d.steps.splice(at, 0, '');
+  remapPhotoSteps(d, s => (s >= at ? s + 1 : s));
+  renderSteps(at); renderPhotoList();
+}
+function deleteStep(i) {
+  const d = APP.draft;
+  d.steps.splice(i, 1);
+  remapPhotoSteps(d, s => (s === i ? null : s > i ? s - 1 : s));
+  renderSteps(); renderPhotoList();
+}
+function moveStep(i, dir) {
+  const d = APP.draft;
+  const j = i + dir;
+  if (j < 0 || j >= d.steps.length) return;
+  [d.steps[i], d.steps[j]] = [d.steps[j], d.steps[i]];
+  remapPhotoSteps(d, s => (s === i ? j : s === j ? i : s));
+  renderSteps(j); renderPhotoList();
+}
+/** Drops empty steps and keeps photos pointing at the right step. */
+function compactSteps(d) {
+  const map = [];
+  const kept = [];
+  d.steps.forEach((s, i) => { if (s.trim()) { map[i] = kept.length; kept.push(s.trim()); } else map[i] = null; });
+  d.steps = kept;
+  remapPhotoSteps(d, s => (map[s] === undefined ? null : map[s]));
+  return d;
 }
 function renderPhotoList() {
   const d = APP.draft;
@@ -564,10 +677,11 @@ function renderPhotoList() {
     const div = document.createElement('div');
     div.className = 'photo';
     div.dataset.id = p.id;
-    const opts = ['<option value="">Show in “Photos” section</option>']
-      .concat(d.steps.map((s, i) => `<option value="${i}"${p.step === i ? ' selected' : ''}>With step ${i + 1}: ${esc(s.slice(0, 30))}</option>`));
-    div.innerHTML = `<img src="${p.src}" alt="Photo ${idx + 1}"><select aria-label="Where to show photo ${idx + 1}">${opts.join('')}</select><button type="button" class="rm">Remove</button>`;
-    $('.rm', div).onclick = () => { readEditor(); d.photos = d.photos.filter(x => x.id !== p.id); renderPhotoList(); };
+    const opts = ['<option value="">Show at the end</option>']
+      .concat(d.steps.map((s, i) => `<option value="${i}"${p.step === i ? ' selected' : ''}>Step ${i + 1}${s ? ': ' + esc(s.slice(0, 28)) : ''}</option>`));
+    div.innerHTML = `<img src="${p.src}" alt="Photo ${idx + 1}"><select aria-label="Where to show photo ${idx + 1}">${opts.join('')}</select><button type="button" class="btn quiet small rm">Remove photo</button>`;
+    $('.rm', div).onclick = () => { readEditor(); d.photos = d.photos.filter(x => x.id !== p.id); renderSteps(); renderPhotoList(); };
+    $('select', div).onchange = () => { readEditor(); renderSteps(); };
     box.appendChild(div);
   });
 }
@@ -575,19 +689,20 @@ function openEditor(g) {
   stopScan();
   const d = g ? JSON.parse(JSON.stringify(g)) : emptyDraft();
   fillEditor(d);
-  $('#edit-heading').textContent = g ? 'Edit instructions' : 'New instructions';
+  $('#edit-heading').textContent = g ? 'Edit guide' : 'New guide';
   setStatus($('#capture-status'), '');
   $('#preview-frame').hidden = true;
   show('edit');
 }
 async function saveDraft() {
-  const d = readEditor();
+  const d = compactSteps(readEditor());
   if (!d.title && !d.item && !d.steps.length) {
-    toast('Add a title or some steps first (take a photo, upload a file, or type).');
+    toast('Add a title or at least one step before saving.');
+    renderSteps();
     return;
   }
   if (d.cloudUrl && !/^https?:\/\//i.test(d.cloudUrl)) {
-    toast('The cloud link must start with https://');
+    toast('The cloud link has to start with https://');
     return;
   }
   if (!d.title) d.title = d.item ? 'How to use the ' + d.item : (d.steps[0] || 'Instructions').slice(0, 60);
@@ -602,7 +717,7 @@ async function saveDraft() {
     return;
   }
   APP.draft = null;
-  toast('Saved on this phone.');
+  toast('Guide saved. Here’s its label.');
   await showGuide(g, true);
   showQrPanel();
 }
@@ -615,6 +730,9 @@ function frameFit(frame) {
   } catch (e) { /* cross-origin, ignore */ }
 }
 function renderInFrame(frame, html) {
+  // Pages saved to files use the phone's own fonts; inside the app we lend them the app's typeface.
+  const font = new URL('fonts/archivo.woff2', location.href).href;
+  html = html.replace('</head>', `<style>@font-face{font-family:'Archivo Variable';font-weight:100 900;font-stretch:62% 125%;src:url(${font}) format('woff2')}</style></head>`);
   frame.onload = () => {
     frameFit(frame);
     try { $$('img', frame.contentDocument).forEach(i => i.addEventListener('load', () => frameFit(frame))); } catch (e) { /* ignore */ }
@@ -630,6 +748,8 @@ async function showGuide(g, saved) {
   $('#act-edit').hidden = !saved;
   $('#act-delete').hidden = !saved;
   $('#qr-panel').hidden = true;
+  $('#act-qr').classList.remove('open');
+  $('#guide-title').textContent = g.title;
   renderInFrame($('#guide-frame'), g.html);
   show('guide');
 }
@@ -639,19 +759,22 @@ function showQrPanel() {
   const info = guideQrInfo(g);
   APP.qrInfo = info;
   let c;
-  try { c = qrCanvas(info.url, g.title, g.location || 'Scan me to see how to use this'); } catch (e) { toast(e.message); return; }
+  try { c = qrCanvas(info.url); } catch (e) { toast(e.message); return; }
   $('#qr-img').src = c.toDataURL('image/png');
   $('#qr-img').dataset.url = info.url;
+  $('#lp-title').textContent = g.title;
+  $('#lp-sub').textContent = g.location || g.item || '';
   const notes = {
-    embedded: 'The instructions are stored inside this QR code, so it works on any phone — even without this app or internet.' +
-      (info.droppedNotes ? ' (Notes are only in the full page.)' : ''),
-    cloud: 'This guide is too long to fit inside a QR code, so the code opens it from your cloud link. Phones with this app installed open their saved copy.',
-    local: 'This guide is too long to fit inside a QR code. It opens on phones that have it saved (this one, or after you share it). Add a cloud link (Edit) so any phone can open it.',
+    embedded: 'The steps are stored inside the code itself, so it works on any phone, even without this app or internet.' +
+      (info.droppedNotes ? ' Notes only appear on the full page.' : ''),
+    cloud: 'This guide is too long to fit inside a QR code, so the label opens it from your cloud link. Phones that have it saved open their own copy.',
+    local: 'This guide is too long to fit inside a QR code. It opens on phones that have it saved. Add a cloud link in Edit so any phone can open it.',
   };
   let note = notes[info.mode];
-  if (!baseIsUsable()) note += ' ⚠️ Set the app’s public web address in “Cloud & Settings” so other phones’ cameras can open the code.';
+  if (!baseIsUsable()) note += ' Other phones’ cameras can’t open it yet: set the app’s web address in Settings.';
   $('#qr-note').textContent = note;
   $('#qr-panel').hidden = false;
+  $('#act-qr').classList.add('open');
 }
 function printLabels(guides) {
   const area = $('#print-area');
@@ -662,7 +785,7 @@ function printLabels(guides) {
     try { src = qrCanvas(guideQrInfo(g).url).toDataURL('image/png'); } catch (e) { console.warn('label failed', g.id, e); continue; }
     const div = document.createElement('div');
     div.className = 'label';
-    div.innerHTML = `<img src="${src}" alt="QR code"><div class="lt">${esc(g.title)}</div><div class="ls">${esc(g.location || g.item || '')}</div><div class="ls">Scan me to see how to use this</div>`;
+    div.innerHTML = `<span class="hole"></span><img src="${src}" alt="QR code"><div class="lt">${esc(g.title)}</div>${g.location || g.item ? `<div class="ls">${esc(g.location || g.item)}</div>` : ''}<div class="lc">Scan to see how to use this</div>`;
     grid.appendChild(div);
   }
   const imgs = $$('img', area);
@@ -674,20 +797,21 @@ async function startScan() {
   const st = $('#scan-status');
   $('#scan-result').innerHTML = '';
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    setStatus(st, 'Live camera isn’t available here. Use “Scan from a photo” instead.', true);
+    setStatus(st, 'This browser can’t use the camera. Use “Scan a photo instead”.', true);
     return;
   }
   stopScan();
   try {
     APP.scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
   } catch (e) {
-    setStatus(st, 'Camera blocked or not found (' + (e.name || e.message) + '). Allow camera access, or use “Scan from a photo”.', true);
+    setStatus(st, 'Camera blocked or not found. Allow camera access in your browser settings, or use “Scan a photo instead”.', true);
     return;
   }
   const v = $('#scan-video');
   v.srcObject = APP.scanStream;
+  $('#viewfinder').classList.add('live');
   try { await v.play(); } catch (e) { /* autoplay quirks; frames still arrive */ }
-  setStatus(st, 'Point the camera at a QR label…');
+  setStatus(st, 'Point the camera at a label');
   const c = $('#scan-canvas');
   const ctx = c.getContext('2d', { willReadFrequently: true });
   const tick = () => {
@@ -715,6 +839,8 @@ function stopScan() {
   APP.scanStream = null;
   const v = $('#scan-video');
   if (v) v.srcObject = null;
+  const vf = $('#viewfinder');
+  if (vf) vf.classList.remove('live');
 }
 async function scanFromFile(file) {
   const st = $('#scan-status');
@@ -777,7 +903,7 @@ async function handleScanned(text, fromLink) {
     show('scan');
     setStatus(st, 'This guide is stored in the owner’s cloud.');
     const r = $('#scan-result');
-    r.innerHTML = '<p><a class="btn" id="open-cloud" target="_blank" rel="noopener">Open the instructions</a></p><p class="small">After it opens you can download the page and import it here to keep it.</p>';
+    r.innerHTML = '<a class="btn primary" id="open-cloud" target="_blank" rel="noopener">Open the instructions</a><p>To keep it, download the page there and import it in Guides.</p>';
     $('#open-cloud').href = info.u;
     if (!fromLink) window.open(info.u, '_blank', 'noopener');
     return true;
@@ -799,14 +925,31 @@ async function renderLibrary() {
   ul.innerHTML = '';
   for (const g of list) {
     const li = document.createElement('li');
+    li.className = 'tag';
     li.dataset.id = g.id;
-    li.innerHTML = `<div class="t">${esc(g.title)}</div><div class="small muted">${esc([g.item, g.location, g.steps.length + ' step' + (g.steps.length === 1 ? '' : 's')].filter(Boolean).join(' · '))}</div>`;
+    li.tabIndex = 0;
+    li.setAttribute('role', 'button');
+    const qr = miniQr(g);
+    const sub = [g.item, g.location].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i);
+    li.innerHTML = `<div><div class="t">${esc(g.title)}</div>${sub.map(v => `<div class="s">${esc(v)}</div>`).join('')}<div class="n">${g.steps.length} step${g.steps.length === 1 ? '' : 's'}</div></div>${qr ? `<img class="mini-qr" src="${qr}" alt="">` : ''}`;
     li.onclick = () => showGuide(g, true);
+    li.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showGuide(g, true); } };
     ul.appendChild(li);
   }
-  $('#empty-library').hidden = all.length > 0;
-  $('#empty-library').textContent = 'No instructions yet. Tap “+ New” to make your first one.';
-  if (all.length && !list.length) { $('#empty-library').hidden = false; $('#empty-library').textContent = 'Nothing matches “' + q + '”.'; }
+  $('#lib-count').textContent = all.length ? `${all.length} on this phone` : '';
+  $('.search').hidden = all.length === 0;
+  $('.lib-tools').querySelector('#print-all-labels').hidden = all.length === 0;
+  const empty = $('#empty-library');
+  empty.hidden = all.length > 0 && list.length > 0;
+  $('#empty-actions').hidden = all.length > 0;
+  $('.blank-tag', empty).hidden = all.length > 0;
+  if (!all.length) {
+    $('#empty-title').textContent = 'No guides yet';
+    $('#empty-text').textContent = 'Photograph the instructions on a machine, a manual or a sign. The app reads the text and turns it into steps you can print as a QR label.';
+  } else if (!list.length) {
+    $('#empty-title').textContent = 'Nothing matches “' + q + '”';
+    $('#empty-text').textContent = 'Try a shorter word, like the name of the machine.';
+  }
 }
 async function makeBackupBlob() {
   const guides = (await dbAll()).map(g => { const { html, ...rest } = g; return rest; });
@@ -829,7 +972,7 @@ async function importFiles(fileList) {
         else throw new Error('not a How To Use Me backup');
       } else {
         const g = guideFromHtml(text);
-        if (!g) throw new Error('not a page made with How To Use Me (to turn other pages into a guide, use “+ New → Upload file”)');
+        if (!g) throw new Error('not a page made with How To Use Me. To turn another page into a guide, tap New, then “A manual or file”');
         guides = [g];
       }
       for (const g of guides) {
@@ -851,11 +994,29 @@ async function importFiles(fileList) {
   return { imported, skipped, bad, last };
 }
 
+/* ---------------------------------------------------------- confirm box */
+function askConfirm(text, okLabel) {
+  const dlg = $('#confirm-dialog');
+  $('#confirm-text').textContent = text;
+  $('#confirm-ok').textContent = okLabel || 'Delete';
+  dlg.returnValue = '';
+  return new Promise(res => {
+    dlg.addEventListener('close', () => res(dlg.returnValue === 'ok'), { once: true });
+    dlg.showModal();
+    $('#confirm-cancel').focus();
+  });
+}
+
 /* ----------------------------------------------------------- navigation */
 function show(name) {
   if (name !== 'scan') stopScan();
   $$('.view').forEach(v => { v.hidden = v.id !== 'view-' + name; });
-  $$('[data-nav]').forEach(b => b.classList.toggle('active', b.dataset.nav === name));
+  $$('[data-nav]').forEach(b => {
+    const on = b.dataset.nav === name || (name === 'guide' && b.dataset.nav === 'library');
+    b.classList.toggle('active', on);
+    if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+  });
+  document.body.classList.toggle('editing', name === 'edit');
   if (name === 'library') renderLibrary();
   if (name === 'settings') renderSettings();
   window.scrollTo(0, 0);
@@ -866,8 +1027,8 @@ async function renderSettings() {
   if (!baseIsUsable()) {
     w.hidden = false;
     w.textContent = NATIVE
-      ? 'You are using the installed app. Enter the web address where this app is hosted so that other phones’ cameras can open your QR codes.'
-      : 'This app is not running from a public web address, so other phones can’t open QR codes. Enter the public address.';
+      ? 'Enter the web address where this app is hosted, so other phones’ cameras can open your labels.'
+      : 'This app isn’t running from a public web address, so other phones can’t open your labels. Enter the public address.';
   } else w.hidden = true;
   const n = (await dbAll()).length;
   let usage = '';
@@ -899,7 +1060,24 @@ function wire() {
     const files = items.filter(i => i.kind === 'file').map(i => i.getAsFile()).filter(Boolean);
     if (files.length) { e.preventDefault(); await handleCaptureFiles(files, 'paste'); }
   });
-  $('#f-steps').addEventListener('change', () => { readEditor(); renderPhotoList(); });
+  $('#add-step').addEventListener('click', () => { readEditor(); insertStep(APP.draft.steps.length); });
+  $('#bulk-open').addEventListener('click', () => {
+    const d = readEditor();
+    $('#f-steps').value = d.steps.filter(Boolean).join('\n');
+    $('#bulk-dialog').showModal();
+    $('#f-steps').focus();
+  });
+  $('#bulk-apply').addEventListener('click', () => {
+    const d = readEditor();
+    d.steps = $('#f-steps').value.split('\n').map(l => stripMarker(cleanLine(l))).filter(Boolean);
+    d.photos.forEach(p => { if (Number.isInteger(p.step) && p.step >= d.steps.length) p.step = null; });
+    renderSteps(); renderPhotoList();
+  });
+  $$('[data-start]').forEach(b => b.addEventListener('click', () => {
+    openEditor(null);
+    $(b.dataset.start === 'camera' ? '#in-camera' : '#in-images').click();
+  }));
+  $('#guide-back').addEventListener('click', () => show('library'));
   $('#save-guide').addEventListener('click', saveDraft);
   $('#preview-guide').addEventListener('click', () => {
     const d = normalizeGuide(readEditor());
@@ -910,7 +1088,10 @@ function wire() {
   });
   $('#cancel-edit').addEventListener('click', () => { APP.draft = null; show('library'); });
 
-  $('#act-qr').addEventListener('click', () => { if ($('#qr-panel').hidden) showQrPanel(); else $('#qr-panel').hidden = true; });
+  $('#act-qr').addEventListener('click', () => {
+    if ($('#qr-panel').hidden) { showQrPanel(); $('#qr-panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+    else { $('#qr-panel').hidden = true; $('#act-qr').classList.remove('open'); }
+  });
   $('#act-share').addEventListener('click', async () => {
     const g = APP.viewing;
     await shareFile(new Blob([g.html], { type: 'text/html' }), slug(g.title) + '.html', g.title, 'How to use: ' + g.title);
@@ -922,46 +1103,46 @@ function wire() {
   });
   $('#act-edit').addEventListener('click', () => openEditor(APP.viewing));
   $('#act-delete').addEventListener('click', async () => {
-    if (!confirm('Delete “' + APP.viewing.title + '” from this phone?')) return;
+    if (!(await askConfirm('Delete “' + APP.viewing.title + '” from this phone? Printed labels for it will stop opening here.', 'Delete guide'))) return;
     await dbDel(APP.viewing.id);
-    toast('Deleted.');
+    toast('Guide deleted.');
     show('library');
   });
   $('#save-scanned').addEventListener('click', async () => {
     const g = APP.viewing;
     g.html = buildGuideHtml(g);
     await dbPut(g);
-    toast('Saved to your library.');
+    toast('Saved to your guides.');
     showGuide(g, true);
   });
 
   $('#qr-print').addEventListener('click', () => printLabels([APP.viewing]));
   $('#qr-download').addEventListener('click', async () => {
     const g = APP.viewing;
-    const c = qrCanvas(guideQrInfo(g).url, g.title, g.location || 'Scan me to see how to use this');
+    const c = qrCanvas(guideQrInfo(g).url, g.title, g.location || g.item || 'Scan to see how to use this');
     saveFile(await canvasBlob(c), slug(g.title) + '-qr.png');
   });
   $('#qr-share').addEventListener('click', async () => {
     const g = APP.viewing;
-    const c = qrCanvas(guideQrInfo(g).url, g.title, g.location || 'Scan me to see how to use this');
+    const c = qrCanvas(guideQrInfo(g).url, g.title, g.location || g.item || 'Scan to see how to use this');
     shareFile(await canvasBlob(c), slug(g.title) + '-qr.png', g.title, 'Scan this to see how to use: ' + g.title);
   });
   $('#qr-copy-link').addEventListener('click', async () => {
     const g = APP.viewing;
     const info = guideQrInfo(g);
     if (info.mode === 'local') {
-      toast('This guide is too long for a link. Use “Share / save to cloud” to send the page instead.', 5000);
+      toast('This guide is too long for a link. Use Share to send the page instead.', 5000);
       return;
     }
     if (navigator.share) {
       try { await navigator.share({ title: g.title, text: 'How to use: ' + g.title, url: info.url }); return; } catch (e) { if (e.name === 'AbortError') return; }
     }
-    try { await navigator.clipboard.writeText(info.url); toast('Link copied — paste it in any chat or email.'); }
+    try { await navigator.clipboard.writeText(info.url); toast('Link copied. Paste it in any chat or email.'); }
     catch (e) { prompt('Copy this link:', info.url); }
   });
 
   $('#scan-start').addEventListener('click', startScan);
-  $('#scan-stop').addEventListener('click', () => { stopScan(); setStatus($('#scan-status'), 'Camera stopped.'); });
+  $('#scan-stop').addEventListener('click', () => { stopScan(); setStatus($('#scan-status'), 'Camera off.'); });
   $('#scan-file').addEventListener('change', async e => { if (e.target.files[0]) await scanFromFile(e.target.files[0]); e.target.value = ''; });
 
   $('#backup-share').addEventListener('click', async () => {
@@ -980,11 +1161,13 @@ function wire() {
     if (v && !/^https?:\/\//i.test(v)) return toast('The address must start with https://');
     APP.settings.publicUrl = v && !/[/#?]$/.test(v) && !/\.[a-z0-9]+$/i.test(v.split('/').pop()) ? v + '/' : v;
     await kvSet('settings', APP.settings);
-    toast('Settings saved.');
+    toast('Address saved.');
     renderSettings();
   });
   $('#clear-all').addEventListener('click', async () => {
-    if (!confirm('Delete ALL guides on this phone? Make a backup first if you want to keep them.')) return;
+    const n = (await dbAll()).length;
+    if (!n) return toast('There are no guides to delete.');
+    if (!(await askConfirm(`Delete all ${n} guides on this phone? Save a backup first if you want to keep them.`, 'Delete all'))) return;
     await dbClear();
     toast('All guides deleted.');
     renderSettings();
@@ -1008,6 +1191,9 @@ async function main() {
     throw e;
   }
   APP.settings = Object.assign({ publicUrl: '' }, (await kvGet('settings')) || {});
+  if (document.fonts && document.fonts.load) {
+    try { await Promise.race([document.fonts.load("800 20px 'Archivo Variable'"), new Promise(r => setTimeout(r, 1500))]); } catch (e) { /* system font is fine */ }
+  }
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
   const opened = await handleIncomingLink();
   if (!opened) show('library');
@@ -1018,5 +1204,5 @@ async function main() {
 }
 
 // Expose for tests / debugging
-window.HTU = { textToSteps, splitTitle, buildGuideHtml, guideFromHtml, guideQrInfo, unpackCompact, handleScanned, dbAll, APP };
+window.HTU = { textToSteps, splitTitle, buildGuideHtml, guideFromHtml, guideQrInfo, unpackCompact, handleScanned, dbAll, readEditor, APP };
 main();

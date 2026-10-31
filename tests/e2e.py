@@ -52,7 +52,14 @@ def wait_status(page, pattern, timeout=120000):
     return page.text_content('#capture-status')
 
 def steps(page):
-    return [s for s in page.input_value('#f-steps').split('\n') if s.strip()]
+    return [s.strip() for s in page.evaluate("Array.from(document.querySelectorAll('#step-list .step-text'), t => t.value)") if s.strip()]
+
+def set_steps(page, text):
+    """Uses the 'Type or paste all' sheet, like a person pasting a list."""
+    page.click('#bulk-open')
+    page.fill('#f-steps', text)
+    page.click('#bulk-apply')
+    page.wait_for_selector('#bulk-dialog', state='hidden')
 
 def frame_text(page, sel='#guide-frame'):
     page.wait_for_function(f"() => {{ const f=document.querySelector('{sel}'); return f && f.contentDocument && f.contentDocument.querySelector('h1'); }}")
@@ -119,6 +126,8 @@ def run_all(pw, browser):
     page.fill('#f-notes', 'Machine does not give change.')
     # attach the photo to step 1
     page.select_option('#photo-list .photo select', '0')
+    page.wait_for_selector('#step-list li:first-child .step-thumbs img')
+    check('Attached photo shows on its step row', page.locator('#step-list li:first-child .step-thumbs img').count() == 1)
     page.screenshot(path=OUT / '02-editor-ocr.png', full_page=True)
 
     # preview
@@ -238,7 +247,21 @@ def run_all(pw, browser):
     # typed by hand + paste screenshot
     page.click('#nav-new')
     page.fill('#f-title', 'Horse cart')
-    page.fill('#f-steps', 'Greet the driver\nPay the fare before boarding\nHold the side rail')
+    set_steps(page, '1. Greet the driver\n2. Pay the fare before boarding\n3. Hold the side rail')
+    check('Pasted list becomes clean step rows', steps(page) == ['Greet the driver', 'Pay the fare before boarding', 'Hold the side rail'], steps(page))
+    # add, edit, reorder and delete single steps
+    page.click('#add-step')
+    page.keyboard.type('Climb in from the left')
+    check('Add a step: new row is focused for typing', steps(page)[-1] == 'Climb in from the left', steps(page))
+    page.click('#step-list li:nth-child(4) [data-act="up"]')
+    check('Move a step up', steps(page)[2] == 'Climb in from the left', steps(page))
+    page.click('#step-list li:nth-child(1) [data-act="del"]')
+    check('Delete a step', steps(page) == ['Pay the fare before boarding', 'Climb in from the left', 'Hold the side rail'], steps(page))
+    page.click('#step-list li:nth-child(3) .step-text')
+    page.keyboard.press('End')
+    page.keyboard.press('Enter')
+    page.keyboard.type('Enjoy the ride')
+    check('Enter at the end of a step starts the next one', steps(page)[-1] == 'Enjoy the ride', steps(page))
     page.click('#save-guide'); page.wait_for_selector('#qr-panel:not([hidden])')
     check('Typing instructions by hand works', 'Hold the side rail' in frame_text(page))
 
@@ -343,7 +366,7 @@ def run_all(pw, browser):
     words = 'valve gauge pressure open close check turn left right pump filter boiler drain reset button lever panel record wait minutes slowly fully'.split()
     long_steps = '\n'.join(' '.join(rnd.choice(words) for _ in range(14)) + f' {rnd.randint(100,999)}' for i in range(40))
     page.fill('#f-title', 'Boiler room procedure')
-    page.fill('#f-steps', long_steps)
+    set_steps(page, long_steps)
     page.click('#save-guide'); page.wait_for_selector('#qr-panel:not([hidden])')
     long_url = page.get_attribute('#qr-img', 'data-url')
     long_id = page.evaluate('HTU.APP.viewing.id')
@@ -406,7 +429,7 @@ def run_all(pw, browser):
     p5.click('#nav-library')
     p5.set_input_files('#import-input', str(FIX / 'laptop_page.html'))
     p5.wait_for_function("document.querySelector('#toast').textContent.includes('Problem')")
-    check('Importing a random web page explains what to do instead', 'Upload file' in p5.text_content('#toast'))
+    check('Importing a random web page explains what to do instead', 'A manual or file' in p5.text_content('#toast'))
     # friend can also open the shared page as a new draft and edit it
     p5.click('#nav-new')
     p5.set_input_files('#in-file', str(path))
@@ -439,6 +462,9 @@ def run_all(pw, browser):
     page.click('#nav-library')
     page.click('#guide-list li:has-text("Horse cart")')
     page.click('#act-delete')
+    page.wait_for_selector('#confirm-dialog[open]')
+    check('Delete asks first in an in-app sheet', 'Horse cart' in page.text_content('#confirm-text'))
+    page.click('#confirm-ok')
     page.wait_for_selector('#view-library:not([hidden])')
     check('Delete a guide', lib_count(page, 7))
 

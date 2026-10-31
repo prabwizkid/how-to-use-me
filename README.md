@@ -48,4 +48,4 @@ Inside the store app, sharing and saving use the native share sheet and Document
 
 ## Tests
 
-`npm test` runs 70 end-to-end checks in a headless phone-sized browser: every capture method (with real OCR and PDF reading), saving, persistence, HTML export, QR generation, printing, scanning from a photo and from a live (simulated) camera, opening on a second "phone", long guides with cloud links, sharing, backup/restore, import, search, delete, offline mode and script-injection safety.
+`npm test` runs 77 end-to-end checks in a headless phone-sized browser: every capture method (with real OCR and PDF reading), saving, persistence, HTML export, QR generation, printing, scanning from a photo and from a live (simulated) camera, opening on a second "phone", long guides with cloud links, sharing, backup/restore, import, search, delete, offline mode and script-injection safety.

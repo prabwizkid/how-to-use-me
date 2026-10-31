@@ -139,7 +139,7 @@ def run_all(pw, browser):
     page.click('#save-guide')
     page.wait_for_selector('#qr-panel:not([hidden])')
     txt = frame_text(page)
-    check('Saved guide renders as an instructions page', 'Insert your parking ticket'.lower() in txt.lower() and 'Garage B' in txt, txt[:200])
+    check('Saved guide renders as an instructions page', 'Insert your parking ticket'.lower() in txt.lower() and 'Garage B' in page.text_content('#guide-sub'), txt[:200])
     qr_url = page.get_attribute('#qr-img', 'data-url')
     check('QR code generated and embeds the guide (works on any phone)', '#g=' in qr_url and '&d=' in qr_url, qr_url[:120])
     check('QR note explains it works without the app', 'any phone' in page.text_content('#qr-note'))
@@ -429,7 +429,7 @@ def run_all(pw, browser):
     p5.click('#nav-library')
     p5.set_input_files('#import-input', str(FIX / 'laptop_page.html'))
     p5.wait_for_function("document.querySelector('#toast').textContent.includes('Problem')")
-    check('Importing a random web page explains what to do instead', 'A manual or file' in p5.text_content('#toast'))
+    check('Importing a random web page explains what to do instead', 'Import PDF or File' in p5.text_content('#toast'))
     # friend can also open the shared page as a new draft and edit it
     p5.click('#nav-new')
     p5.set_input_files('#in-file', str(path))

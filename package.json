@@ -28,7 +28,6 @@
   },
   "private": true,
   "devDependencies": {
-    "@capacitor/cli": "^7.0.0",
-    "@fontsource-variable/archivo": "^5.3.0"
+    "@capacitor/cli": "^7.0.0"
   }
 }

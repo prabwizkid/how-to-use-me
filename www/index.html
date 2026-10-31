@@ -3,21 +3,23 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#E3E6EA" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#11181F" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>How To Use Me</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
-<link rel="preload" href="fonts/archivo.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
-    <symbol id="i-tag" viewBox="0 0 24 24"><path d="M3 12V5a2 2 0 0 1 2-2h7l9 9-9 9-9-9z"/><circle cx="8" cy="8" r="1.6"/></symbol>
-    <symbol id="i-scan" viewBox="0 0 24 24"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M8 8h3v3H8zM13 13h3v3h-3zM13 8h3M8 16h3"/></symbol>
+    <symbol id="i-guides" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="M8 8h8M8 12h8M8 16h5"/></symbol>
+    <symbol id="i-scan" viewBox="0 0 24 24"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="M8 8h3v3H8zM13 13h3v3h-3zM13 8h3M8 16h3"/></symbol>
     <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-plus-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></symbol>
     <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
     <symbol id="i-camera" viewBox="0 0 24 24"><path d="M3 8a2 2 0 0 1 2-2h2l2-2h6l2 2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="3.5"/></symbol>
     <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="m21 16-5-5-9 9"/></symbol>
@@ -28,233 +30,243 @@
     <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></symbol>
     <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
     <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
-    <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 4l-8 8 8 8"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></symbol>
     <symbol id="i-up" viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></symbol>
     <symbol id="i-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
-    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></symbol>
     <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></symbol>
     <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
     <symbol id="i-text" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></symbol>
+    <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18a5 5 0 0 1-.6-9.96A6 6 0 0 1 18 9a4.5 4.5 0 0 1-.5 9z"/></symbol>
+    <symbol id="i-qr" viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="M14 14h2v2h-2zM18 18h2v2h-2zM14 18h2M18 14h2"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z"/></symbol>
+    <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/></symbol>
   </defs>
 </svg>
 
 <div id="app">
-  <header class="appbar">
-    <span class="brand"><svg class="ico" aria-hidden="true"><use href="#i-tag"/></svg>How To Use Me</span>
-  </header>
-
   <main>
     <!-- LIBRARY -->
-    <section id="view-library" class="view">
-      <div class="view-head">
-        <h1>Your guides</h1>
-        <p id="lib-count" class="muted"></p>
-      </div>
+    <section id="view-library" class="view" data-title="Guides">
+      <header class="navbar">
+        <span class="nav-left"></span>
+        <span class="nav-title">Guides</span>
+        <span class="nav-right"><button id="lib-add" class="nav-btn icon" aria-label="New guide"><svg class="ico"><use href="#i-plus-circle"/></svg></button></span>
+      </header>
+      <h1 class="large-title">Guides</h1>
       <label class="search">
         <svg class="ico" aria-hidden="true"><use href="#i-search"/></svg>
-        <input id="search" type="search" placeholder="Search guides" aria-label="Search guides">
+        <input id="search" type="search" placeholder="Search" aria-label="Search guides">
       </label>
-      <ul id="guide-list" class="tags"></ul>
+      <ul id="guide-list" class="list"></ul>
+      <p id="lib-count" class="list-footer"></p>
 
       <div id="empty-library" class="empty">
-        <div class="blank-tag" aria-hidden="true"><span class="hole"></span><span class="line"></span><span class="line short"></span></div>
-        <p id="empty-title" class="empty-title">No guides yet</p>
-        <p id="empty-text" class="muted">Photograph the instructions on a machine, a manual or a sign. The app reads the text and turns it into steps you can print as a QR label.</p>
+        <div class="empty-icon" aria-hidden="true"><svg class="ico"><use href="#i-qr"/></svg></div>
+        <p id="empty-title" class="empty-title">No Guides Yet</p>
+        <p id="empty-text" class="empty-text">Take a photo of any instructions. The text becomes steps you can print as a QR label.</p>
         <div id="empty-actions" class="empty-actions">
-          <button class="btn primary" data-start="camera"><svg class="ico"><use href="#i-camera"/></svg>Take a photo</button>
-          <button class="btn" data-start="images"><svg class="ico"><use href="#i-image"/></svg>Use a screenshot</button>
+          <button class="btn filled" data-start="camera"><svg class="ico"><use href="#i-camera"/></svg>Take Photo</button>
+          <button class="btn plain" data-start="images">Choose Screenshot</button>
         </div>
       </div>
 
-      <div class="lib-tools">
-        <label class="btn quiet"><svg class="ico"><use href="#i-download"/></svg>Import a guide or backup
-          <input id="import-input" type="file" accept=".html,.htm,.json,text/html,application/json" multiple hidden>
-        </label>
-        <button id="print-all-labels" class="btn quiet"><svg class="ico"><use href="#i-print"/></svg>Print all labels</button>
-      </div>
+      <ul class="list lib-tools">
+        <li><label class="row action"><span class="row-icon gray"><svg class="ico"><use href="#i-download"/></svg></span><span class="row-label">Import Guide or Backup</span>
+          <input id="import-input" type="file" accept=".html,.htm,.json,text/html,application/json" multiple hidden></label></li>
+        <li id="print-all-row"><button id="print-all-labels" class="row action"><span class="row-icon gray"><svg class="ico"><use href="#i-print"/></svg></span><span class="row-label">Print All Labels</span></button></li>
+      </ul>
     </section>
 
-    <!-- EDITOR -->
-    <section id="view-edit" class="view" hidden>
-      <div class="view-head">
-        <h1 id="edit-heading">New guide</h1>
-      </div>
+    <!-- EDITOR (modal style) -->
+    <section id="view-edit" class="view" data-title="New Guide" hidden>
+      <header class="navbar always">
+        <span class="nav-left"><button id="cancel-edit" class="nav-btn">Cancel</button></span>
+        <span class="nav-title" id="edit-heading">New Guide</span>
+        <span class="nav-right"><button id="save-guide" class="nav-btn strong">Save</button></span>
+      </header>
 
-      <div class="group">
-        <h2>Start from</h2>
-        <div class="tiles">
-          <label class="tile"><svg class="ico"><use href="#i-camera"/></svg><span>Take a photo</span>
-            <input id="in-camera" type="file" accept="image/*" capture="environment" hidden>
-          </label>
-          <label class="tile"><svg class="ico"><use href="#i-image"/></svg><span>Screenshots or photos</span>
-            <input id="in-images" type="file" accept="image/*" multiple hidden>
-          </label>
-          <label class="tile"><svg class="ico"><use href="#i-file"/></svg><span>A manual or file</span>
-            <input id="in-file" type="file" accept=".pdf,.txt,.md,.html,.htm,application/pdf,text/plain,text/markdown,text/html,image/*" multiple hidden>
-          </label>
-        </div>
-        <label class="check"><input id="ocr-toggle" type="checkbox" checked><span>Read the text in pictures and turn it into steps</span></label>
-        <p id="capture-status" class="status" aria-live="polite"></p>
-        <p class="hint">PDFs, text files and web pages work too. On a computer you can paste a screenshot.</p>
-      </div>
+      <p class="section-header">Add instructions</p>
+      <ul class="list">
+        <li><label class="row action"><span class="row-icon blue"><svg class="ico"><use href="#i-camera"/></svg></span><span class="row-label">Take Photo</span><svg class="ico chev"><use href="#i-chev"/></svg>
+          <input id="in-camera" type="file" accept="image/*" capture="environment" hidden></label></li>
+        <li><label class="row action"><span class="row-icon orange"><svg class="ico"><use href="#i-image"/></svg></span><span class="row-label">Choose Screenshots or Photos</span><svg class="ico chev"><use href="#i-chev"/></svg>
+          <input id="in-images" type="file" accept="image/*" multiple hidden></label></li>
+        <li><label class="row action"><span class="row-icon gray"><svg class="ico"><use href="#i-file"/></svg></span><span class="row-label">Import PDF or File</span><svg class="ico chev"><use href="#i-chev"/></svg>
+          <input id="in-file" type="file" accept=".pdf,.txt,.md,.html,.htm,application/pdf,text/plain,text/markdown,text/html,image/*" multiple hidden></label></li>
+        <li><label class="row"><span class="row-icon purple"><svg class="ico"><use href="#i-sparkle"/></svg></span><span class="row-label">Turn Text into Steps</span>
+          <input id="ocr-toggle" class="switch" type="checkbox" checked></label></li>
+      </ul>
+      <p id="capture-status" class="list-footer status" aria-live="polite"></p>
+      <p class="list-footer hint-default">Reads the text in photos, screenshots and PDFs on this phone. On a computer you can also paste a screenshot.</p>
 
-      <div class="group">
-        <h2>About it</h2>
-        <label class="field"><span>Title</span><input id="f-title" type="text" placeholder="How to pay at the parking machine"></label>
-        <label class="field"><span>What it’s for</span><input id="f-item" type="text" placeholder="Parking pay station"></label>
-        <label class="field"><span>Where it is <em>optional</em></span><input id="f-location" type="text" placeholder="Garage B, level 2"></label>
-      </div>
+      <p class="section-header">Details</p>
+      <ul class="list form">
+        <li class="row field"><span class="row-label">Title</span><input id="f-title" type="text" placeholder="How to pay for parking" autocomplete="off"></li>
+        <li class="row field"><span class="row-label">For</span><input id="f-item" type="text" placeholder="Parking pay station" autocomplete="off"></li>
+        <li class="row field"><span class="row-label">Location</span><input id="f-location" type="text" placeholder="Optional" autocomplete="off"></li>
+      </ul>
 
-      <div class="group">
-        <div class="group-head">
-          <h2>Steps</h2>
-          <button id="bulk-open" class="btn quiet small"><svg class="ico"><use href="#i-text"/></svg>Type or paste all</button>
-        </div>
-        <ol id="step-list" class="step-list"></ol>
-        <p id="steps-empty" class="hint">No steps yet. Take a photo above, or add them one by one.</p>
-        <button id="add-step" class="btn dashed"><svg class="ico"><use href="#i-plus"/></svg>Add a step</button>
+      <p class="section-header">Steps</p>
+      <ul class="list steps-card">
+        <li class="step-list-wrap"><ol id="step-list" class="step-list"></ol></li>
+        <li id="steps-empty" class="row muted-row">No steps yet</li>
+        <li><button id="add-step" class="row action blue-text"><svg class="ico lead"><use href="#i-plus-circle"/></svg><span class="row-label">Add Step</span></button></li>
+        <li><button id="bulk-open" class="row action blue-text"><svg class="ico lead"><use href="#i-text"/></svg><span class="row-label">Type or Paste All Steps</span></button></li>
+      </ul>
+
+      <div id="photos-section">
+        <p class="section-header">Photos</p>
         <div id="photo-list" class="photos"></div>
+        <p class="list-footer">Choose a step to show each photo next to it.</p>
       </div>
 
-      <div class="group">
-        <h2>Extras</h2>
-        <label class="field"><span>Notes or warnings <em>optional</em></span><textarea id="f-notes" rows="2" placeholder="The machine doesn’t give change"></textarea></label>
-        <label class="field"><span>Cloud link <em>optional</em></span>
-          <input id="f-cloud" type="url" placeholder="https://drive.google.com/…">
-        </label>
-        <p class="hint">Very long guides don’t fit inside a QR code. Save the page to Google Drive, Dropbox, iCloud or OneDrive, paste its share link here, and the label will open it from there.</p>
-      </div>
+      <p class="section-header">More</p>
+      <ul class="list form">
+        <li class="row field tall"><span class="row-label">Notes</span><textarea id="f-notes" rows="2" placeholder="Optional"></textarea></li>
+        <li class="row field"><span class="row-label">Cloud Link</span><input id="f-cloud" type="url" placeholder="Optional" autocomplete="off"></li>
+      </ul>
+      <p class="list-footer">Long guides don’t fit inside a QR code. Save the page to Google Drive, Dropbox, iCloud or OneDrive and paste its share link here so the label opens it from there.</p>
 
-      <div class="actionbar">
-        <button id="cancel-edit" class="btn quiet">Cancel</button>
-        <button id="preview-guide" class="btn"><svg class="ico"><use href="#i-eye"/></svg>Preview</button>
-        <button id="save-guide" class="btn primary">Save and make label</button>
-      </div>
+      <ul class="list">
+        <li><button id="preview-guide" class="row action blue-text"><svg class="ico lead"><use href="#i-eye"/></svg><span class="row-label">Preview Page</span></button></li>
+      </ul>
       <iframe id="preview-frame" class="page-frame" title="Preview" hidden></iframe>
     </section>
 
     <!-- GUIDE -->
-    <section id="view-guide" class="view" hidden>
-      <div class="guide-top">
-        <button id="guide-back" class="btn icon quiet" aria-label="Back to your guides"><svg class="ico"><use href="#i-back"/></svg></button>
-        <span id="guide-title" class="guide-title"></span>
-      </div>
-      <div id="unsaved-banner" class="banner" hidden>
-        <p>You scanned this label. It isn’t in your guides yet.</p>
-        <button id="save-scanned" class="btn primary">Save to your guides</button>
+    <section id="view-guide" class="view" data-title="" hidden>
+      <header class="navbar">
+        <span class="nav-left"><button id="guide-back" class="nav-btn back"><svg class="ico"><use href="#i-back"/></svg>Guides</button></span>
+        <span class="nav-title" id="guide-nav-title"></span>
+        <span class="nav-right"></span>
+      </header>
+      <h1 class="large-title" id="guide-title"></h1>
+      <p id="guide-sub" class="guide-sub"></p>
+
+      <div id="unsaved-banner" class="notice" hidden>
+        <p>You scanned this guide. It isn’t saved on this phone yet.</p>
+        <button id="save-scanned" class="btn filled small">Save to Guides</button>
       </div>
 
-      <div class="toolbar" id="guide-actions">
-        <button id="act-qr" class="tool primary"><svg class="ico"><use href="#i-scan"/></svg><span>Label</span></button>
-        <button id="act-share" class="tool"><svg class="ico"><use href="#i-share"/></svg><span>Share</span></button>
-        <button id="act-download" class="tool"><svg class="ico"><use href="#i-download"/></svg><span>Save</span></button>
-        <button id="act-print" class="tool"><svg class="ico"><use href="#i-print"/></svg><span>Print</span></button>
-        <button id="act-edit" class="tool"><svg class="ico"><use href="#i-edit"/></svg><span>Edit</span></button>
-        <button id="act-delete" class="tool danger"><svg class="ico"><use href="#i-trash"/></svg><span>Delete</span></button>
+      <div class="quick-actions" id="guide-actions">
+        <button id="act-qr" class="qa"><span class="qa-icon"><svg class="ico"><use href="#i-qr"/></svg></span><span>Label</span></button>
+        <button id="act-share" class="qa"><span class="qa-icon"><svg class="ico"><use href="#i-share"/></svg></span><span>Share</span></button>
+        <button id="act-print" class="qa"><span class="qa-icon"><svg class="ico"><use href="#i-print"/></svg></span><span>Print</span></button>
+        <button id="act-download" class="qa"><span class="qa-icon"><svg class="ico"><use href="#i-download"/></svg></span><span>Save</span></button>
       </div>
 
-      <div id="qr-panel" class="label-panel" hidden>
-        <div class="label-preview">
-          <span class="hole" aria-hidden="true"></span>
-          <img id="qr-img" alt="QR code for this guide">
-          <p id="lp-title" class="lp-title"></p>
-          <p id="lp-sub" class="lp-sub"></p>
-          <p class="lp-call">Scan to see how to use this</p>
-        </div>
-        <p id="qr-note" class="hint center"></p>
-        <div class="label-actions">
-          <button id="qr-print" class="btn primary"><svg class="ico"><use href="#i-print"/></svg>Print label</button>
-          <button id="qr-download" class="btn"><svg class="ico"><use href="#i-download"/></svg>Save image</button>
-          <button id="qr-share" class="btn"><svg class="ico"><use href="#i-share"/></svg>Share image</button>
-          <button id="qr-copy-link" class="btn"><svg class="ico"><use href="#i-link"/></svg>Send link</button>
-        </div>
+      <div id="qr-panel" class="qr-card" hidden>
+        <img id="qr-img" alt="QR code for this guide">
+        <p id="lp-title" class="lp-title"></p>
+        <p id="lp-sub" class="lp-sub"></p>
+        <button id="qr-print" class="btn filled wide"><svg class="ico"><use href="#i-print"/></svg>Print Label</button>
+        <ul class="list inner">
+          <li><button id="qr-download" class="row action blue-text"><svg class="ico lead"><use href="#i-download"/></svg><span class="row-label">Save Image</span></button></li>
+          <li><button id="qr-share" class="row action blue-text"><svg class="ico lead"><use href="#i-share"/></svg><span class="row-label">Share Image</span></button></li>
+          <li><button id="qr-copy-link" class="row action blue-text"><svg class="ico lead"><use href="#i-link"/></svg><span class="row-label">Send Link</span></button></li>
+        </ul>
+        <p id="qr-note" class="qr-note"></p>
       </div>
 
       <iframe id="guide-frame" class="page-frame" title="Instructions" sandbox="allow-same-origin allow-modals"></iframe>
+
+      <ul class="list" id="guide-manage">
+        <li><button id="act-edit" class="row action blue-text center-label"><span class="row-label">Edit Guide</span></button></li>
+        <li><button id="act-delete" class="row action red-text center-label"><span class="row-label">Delete Guide</span></button></li>
+      </ul>
     </section>
 
     <!-- SCANNER -->
-    <section id="view-scan" class="view" hidden>
-      <div class="view-head">
-        <h1>Scan a label</h1>
-      </div>
+    <section id="view-scan" class="view" data-title="Scan" hidden>
+      <header class="navbar">
+        <span class="nav-left"></span>
+        <span class="nav-title">Scan</span>
+        <span class="nav-right"></span>
+      </header>
+      <h1 class="large-title">Scan</h1>
       <div class="viewfinder" id="viewfinder">
         <video id="scan-video" playsinline muted></video>
         <canvas id="scan-canvas" hidden></canvas>
         <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
-        <button id="scan-start" class="btn primary vf-start"><svg class="ico"><use href="#i-camera"/></svg>Turn on camera</button>
+        <div class="vf-idle">
+          <p>Point your camera at a How To Use Me label.</p>
+          <button id="scan-start" class="btn filled"><svg class="ico"><use href="#i-camera"/></svg>Turn On Camera</button>
+        </div>
       </div>
-      <p id="scan-status" class="status center" aria-live="polite"></p>
-      <div class="scan-actions">
-        <label class="btn"><svg class="ico"><use href="#i-image"/></svg>Scan a photo instead
-          <input id="scan-file" type="file" accept="image/*" hidden>
-        </label>
-        <button id="scan-stop" class="btn quiet">Turn off camera</button>
-      </div>
+      <p id="scan-status" class="list-footer status center" aria-live="polite"></p>
       <div id="scan-result" class="scan-result"></div>
+      <ul class="list">
+        <li><label class="row action"><span class="row-icon orange"><svg class="ico"><use href="#i-image"/></svg></span><span class="row-label">Scan from Photo</span><svg class="ico chev"><use href="#i-chev"/></svg>
+          <input id="scan-file" type="file" accept="image/*" hidden></label></li>
+        <li><button id="scan-stop" class="row action"><span class="row-icon gray"><svg class="ico"><use href="#i-camera"/></svg></span><span class="row-label">Turn Off Camera</span></button></li>
+      </ul>
     </section>
 
     <!-- SETTINGS -->
-    <section id="view-settings" class="view" hidden>
-      <div class="view-head">
-        <h1>Settings</h1>
-      </div>
+    <section id="view-settings" class="view" data-title="Settings" hidden>
+      <header class="navbar">
+        <span class="nav-left"></span>
+        <span class="nav-title">Settings</span>
+        <span class="nav-right"></span>
+      </header>
+      <h1 class="large-title">Settings</h1>
 
-      <div class="group">
-        <h2>Back up and move</h2>
-        <p class="hint">One file holds every guide and photo. Save it to Google Drive, Dropbox, iCloud, OneDrive or any cloud, or send it to a friend. Open it on another phone with Restore.</p>
-        <div class="stack">
-          <button id="backup-share" class="btn primary"><svg class="ico"><use href="#i-share"/></svg>Save backup to a cloud</button>
-          <button id="backup-download" class="btn"><svg class="ico"><use href="#i-download"/></svg>Download backup file</button>
-          <label class="btn"><svg class="ico"><use href="#i-file"/></svg>Restore from a backup
-            <input id="restore-input" type="file" accept=".json,.html,.htm,application/json,text/html" multiple hidden>
-          </label>
-        </div>
-      </div>
+      <p class="section-header">Backup</p>
+      <ul class="list">
+        <li><button id="backup-share" class="row action"><span class="row-icon blue"><svg class="ico"><use href="#i-cloud"/></svg></span><span class="row-label">Back Up to Cloud</span><svg class="ico chev"><use href="#i-chev"/></svg></button></li>
+        <li><button id="backup-download" class="row action"><span class="row-icon green"><svg class="ico"><use href="#i-download"/></svg></span><span class="row-label">Download Backup File</span><svg class="ico chev"><use href="#i-chev"/></svg></button></li>
+        <li><label class="row action"><span class="row-icon gray"><svg class="ico"><use href="#i-file"/></svg></span><span class="row-label">Restore from Backup</span><svg class="ico chev"><use href="#i-chev"/></svg>
+          <input id="restore-input" type="file" accept=".json,.html,.htm,application/json,text/html" multiple hidden></label></li>
+      </ul>
+      <p class="list-footer">One file holds every guide and photo. Save it to Google Drive, Dropbox, iCloud, OneDrive or any cloud, or send it to a friend.</p>
 
-      <div class="group">
-        <h2>Web address for QR codes</h2>
-        <label class="field"><span>Public address of this app</span>
-          <input id="set-url" type="url" placeholder="https://your-site.example/how-to-use-me/">
-        </label>
-        <p class="hint">Other phones open this address when their camera scans a label. Leave it empty to use the address the app is running from.</p>
-        <p id="url-warning" class="warn" hidden></p>
-        <button id="set-save" class="btn">Save address</button>
-      </div>
+      <p class="section-header">QR Codes</p>
+      <ul class="list form">
+        <li class="row field stacked"><span class="row-label">App Web Address</span><input id="set-url" type="url" placeholder="https://your-site.example/how-to-use-me/" autocomplete="off"></li>
+        <li><button id="set-save" class="row action blue-text center-label"><span class="row-label">Save Address</span></button></li>
+      </ul>
+      <p id="url-warning" class="list-footer warn" hidden></p>
+      <p class="list-footer">Other phones open this address when their camera scans a label. Leave it empty to use the address this app is running from.</p>
 
-      <div class="group">
-        <h2>On this phone</h2>
-        <p id="storage-info" class="hint" style="margin:0 0 12px"></p>
-        <button id="clear-all" class="btn danger"><svg class="ico"><use href="#i-trash"/></svg>Delete every guide on this phone</button>
-      </div>
+      <p class="section-header">Storage</p>
+      <ul class="list">
+        <li class="row"><span class="row-label">On This Phone</span><span id="storage-info" class="row-value"></span></li>
+        <li><button id="clear-all" class="row action red-text center-label"><span class="row-label">Delete All Guides</span></button></li>
+      </ul>
     </section>
   </main>
 
   <nav class="tabbar" aria-label="Main">
-    <button data-nav="library" id="nav-library"><svg class="ico"><use href="#i-tag"/></svg><span>Guides</span></button>
-    <button data-nav="edit" id="nav-new" class="tab-new"><svg class="ico"><use href="#i-plus"/></svg><span>New</span></button>
+    <button data-nav="library" id="nav-library"><svg class="ico"><use href="#i-guides"/></svg><span>Guides</span></button>
+    <button data-nav="edit" id="nav-new"><svg class="ico"><use href="#i-plus-circle"/></svg><span>New</span></button>
     <button data-nav="scan" id="nav-scan"><svg class="ico"><use href="#i-scan"/></svg><span>Scan</span></button>
     <button data-nav="settings" id="nav-settings"><svg class="ico"><use href="#i-gear"/></svg><span>Settings</span></button>
   </nav>
 
   <dialog id="bulk-dialog" class="sheet">
     <form method="dialog">
-      <h2>All steps</h2>
-      <p class="hint">One step per line. Numbers and bullets are cleaned up for you.</p>
-      <textarea id="f-steps" rows="10" placeholder="Press the green button&#10;Insert your ticket&#10;Pay by card"></textarea>
-      <div class="sheet-actions">
-        <button value="cancel" class="btn quiet">Cancel</button>
-        <button id="bulk-apply" value="apply" class="btn primary">Use these steps</button>
-      </div>
+      <div class="grabber" aria-hidden="true"></div>
+      <header class="sheet-bar">
+        <button value="cancel" class="nav-btn">Cancel</button>
+        <span class="nav-title">All Steps</span>
+        <button id="bulk-apply" value="apply" class="nav-btn strong">Done</button>
+      </header>
+      <textarea id="f-steps" rows="12" placeholder="Press the green button&#10;Insert your ticket&#10;Pay by card"></textarea>
+      <p class="list-footer">One step per line. Numbers and bullets are removed for you.</p>
     </form>
   </dialog>
 
-  <dialog id="confirm-dialog" class="sheet">
+  <dialog id="confirm-dialog" class="alert">
     <form method="dialog">
-      <p id="confirm-text" class="confirm-text"></p>
-      <div class="sheet-actions">
-        <button id="confirm-cancel" value="cancel" class="btn quiet">Keep it</button>
-        <button id="confirm-ok" value="ok" class="btn danger solid">Delete</button>
+      <div class="alert-body">
+        <p id="confirm-title" class="alert-title">Delete Guide?</p>
+        <p id="confirm-text" class="alert-text"></p>
+      </div>
+      <div class="alert-actions">
+        <button id="confirm-cancel" value="cancel">Cancel</button>
+        <button id="confirm-ok" value="ok" class="destructive">Delete</button>
       </div>
     </form>
   </dialog>

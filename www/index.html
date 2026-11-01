@@ -254,7 +254,7 @@
         <li><label class="row action"><span class="row-icon gray"><svg class="ico"><use href="#i-file"/></svg></span><span class="row-label">Restore from Backup</span><svg class="ico chev"><use href="#i-chev"/></svg>
           <input id="restore-input" type="file" accept=".json,.html,.htm,application/json,text/html" multiple hidden></label></li>
       </ul>
-      <p class="list-footer">One file holds every guide and photo. Save it to Google Drive, Dropbox, iCloud, OneDrive or any cloud, or send it to a friend.</p>
+      <p class="list-footer">One file holds every guide and photo. Save it to Google Drive, Dropbox, iCloud, OneDrive or any cloud. A backup also holds the keys that let you update or remove guides you published, so only give it to people you trust.</p>
 
       <p class="section-header">Public Library</p>
       <ul class="list">
@@ -270,6 +270,10 @@
       </ul>
       <p id="url-warning" class="list-footer warn" hidden></p>
       <p class="list-footer">Other phones open this address when their camera scans a label. Leave it empty to use the address this app is running from.</p>
+
+      <ul class="list" id="contact-row" hidden>
+        <li><a id="contact-link" class="row action" href="#"><span class="row-icon gray"><svg class="ico"><use href="#i-link"/></svg></span><span class="row-label">Contact Us</span><span id="contact-value" class="row-value"></span></a></li>
+      </ul>
 
       <p class="section-header">Storage</p>
       <ul class="list">
@@ -297,6 +301,26 @@
       </header>
       <textarea id="f-steps" rows="12" placeholder="Press the green button&#10;Insert your ticket&#10;Pay by card"></textarea>
       <p class="list-footer">One step per line. Numbers and bullets are removed for you.</p>
+    </form>
+  </dialog>
+
+  <dialog id="report-dialog" class="sheet">
+    <form method="dialog">
+      <div class="grabber" aria-hidden="true"></div>
+      <header class="sheet-bar">
+        <button value="cancel" class="nav-btn">Cancel</button>
+        <span class="nav-title">Report Guide</span>
+        <span></span>
+      </header>
+      <p class="section-header">What’s wrong with it?</p>
+      <ul class="list">
+        <li><button value="wrong" class="row action"><span class="row-label">The steps are wrong</span></button></li>
+        <li><button value="unsafe" class="row action"><span class="row-label">It’s unsafe or a scam</span></button></li>
+        <li><button value="spam" class="row action"><span class="row-label">Spam or advertising</span></button></li>
+        <li><button value="offensive" class="row action"><span class="row-label">Offensive text or photos</span></button></li>
+        <li><button value="other" class="row action"><span class="row-label">Something else</span></button></li>
+      </ul>
+      <p class="list-footer">Guides with several reports are hidden until they’re reviewed.</p>
     </form>
   </dialog>
 

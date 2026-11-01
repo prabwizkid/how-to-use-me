@@ -393,6 +393,9 @@ def run_all(pw, browser):
     open_app(p3, cloud_url)
     p3.wait_for_selector('#open-cloud')
     check('Other phone: long guide opens from the cloud link', 'drive.google.com' in p3.get_attribute('#open-cloud', 'href'))
+    p3.evaluate(f"HTU.handleScanned({json.dumps(cloud_url)})")
+    p3.wait_for_selector('#open-cloud')
+    check('Scanner never opens links by itself and shows where they go', p3.evaluate('window.__opened') is None and 'drive.google.com' in p3.text_content('#open-cloud') and 'trust' in p3.text_content('#scan-result'))
     ctx3.close()
 
     # ---------- backup to cloud, restore on a new phone (incl. photos)
@@ -499,6 +502,10 @@ def run_library(browser):
         return
     errors = []
     cfg = "window.HTU_CONFIG = { libraryRest: '%s' };" % lib.url
+    lib.sql("update public.library_settings set pow_bits = 14, publish_per_client_hour = 1000, publish_global_hour = 100000, "
+            "publish_global_day = 100000, report_per_client_day = 1000")
+    admin_key = lib.sql_value('select library_private.admin_new_key()')
+    import library_security
 
     def phone(config=cfg):
         ctx, page = new_page(browser, errors)
@@ -548,9 +555,26 @@ def run_library(browser):
         wait_toast(a, 'Published')
         check('Library: after publishing, the row becomes Update Public Copy and Remove appears',
               a.text_content('#act-publish').strip() == 'Update Public Copy' and a.is_visible('#row-unpublish') and 'Published' in a.text_content('#pub-status'))
+        check('Library: publishing says the photo appears after review', 'after a quick review' in a.text_content('#toast'))
         rows = lib.rpc('search_guides', {'q': 'parking'})
-        check('Library: the guide is in the shared database with its photo', len(rows) == 1 and rows[0]['photo_count'] == 1 and rows[0]['step_count'] == 3, rows)
-        pub_id = rows[0]['id']
+        pub_id = rows[0]['id'] if rows else ''
+        check('Library: the guide is in the shared database, photo held for review',
+              len(rows) == 1 and rows[0]['step_count'] == 3 and lib.rpc('get_guide', {'p_id': pub_id})['photos_pending'] == 1, rows)
+        # ---------- admin approves the photo on the admin page
+        adm = ca.new_page()
+        adm.goto(BASE + 'admin.html')
+        adm.fill('#key', 'not-the-key')
+        adm.click('#signin-btn')
+        adm.wait_for_function("document.querySelector('#signin-error').textContent.length > 0")
+        check('Admin page: a wrong key is refused', 'Wrong admin key' in adm.text_content('#signin-error') and adm.is_hidden('#panel'))
+        adm.fill('#key', admin_key)
+        adm.click('#signin-btn')
+        adm.wait_for_selector('#queue .card')
+        card = adm.locator('#queue .card', has_text='parking machine')
+        check('Admin page: the new guide is waiting for photo review', card.count() == 1 and '1 photo waiting' in card.text_content() and card.locator('img').count() == 1)
+        card.locator('button[data-action="approve_photos"]').click()
+        adm.wait_for_function("!document.querySelector('#queue').textContent.includes('photo waiting')")
+        check('Admin page: Approve Photos makes the photo public', len(lib.rpc('get_guide', {'p_id': pub_id})['photos']) == 1)
         secret = a.evaluate('HTU.APP.viewing.pubSecret')
         check('Library: the edit key never goes into shared pages or the library', len(secret) >= 24 and secret not in a.evaluate('HTU.APP.viewing.html') and secret not in json.dumps(lib.rpc('get_guide', {'p_id': pub_id})))
 
@@ -624,15 +648,47 @@ def run_library(browser):
         b.click('#browse-list .guide-row')
         b.wait_for_selector('#view-guide:not([hidden])')
         b.click('#act-report')
-        b.wait_for_selector('#confirm-dialog[open]')
-        b.click('#confirm-ok')
+        b.wait_for_selector('#report-dialog[open]')
+        check('Library: Report asks for a reason', b.locator('#report-dialog button[value]').count() == 6)
+        b.click('#report-dialog button[value="spam"]')
         wait_toast(b, 'reported')
         check('Library: Report sends one report and disables the button', b.is_disabled('#act-report'))
         boiler_id = lib.rpc('search_guides', {'q': 'boiler'})[0]['id']
-        for d in ['device-test-0001', 'device-test-0002']:
-            lib.rpc('report_guide', {'p_id': boiler_id, 'p_reporter': d, 'p_reason': 'test'})
+        for n in (1, 2):
+            ch = lib.rpc('get_challenge', {}, {'X-Forwarded-For': f'192.0.2.{n}'})
+            lib.rpc('report_guide', {'p_id': boiler_id, 'p_reason': 'unsafe', 'p_token': ch['token'], 'p_nonce': library_security.solve(ch['token'], ch['bits'])},
+                    {'X-Forwarded-For': f'192.0.2.{n}'})
         browse(b, 'boiler')
-        check('Library: a guide with 3 reports disappears from Browse', 'No Results' in b.text_content('#browse-empty-title'))
+        check('Library: reports from 3 different networks hide a guide', 'No Results' in b.text_content('#browse-empty-title'))
+        adm.reload()
+        adm.wait_for_selector('#queue .card')
+        bcard = adm.locator('#queue .card', has_text='Boiler room procedure')
+        check('Admin page: the hidden guide shows its report reasons', bcard.count() == 1 and 'Hidden' in bcard.text_content() and '3 reports' in bcard.text_content() and 'unsafe / scam ×2' in bcard.text_content())
+        bcard.locator('button[data-action="protect"]').click()
+        adm.wait_for_function("!document.querySelector('#queue').textContent.includes('Boiler room procedure')")
+        browse(b, 'boiler')
+        check('Admin page: Mark as Fine brings the guide back', b.locator('#browse-list .guide-row').count() == 1)
+
+        # ---------- duplicates and rule messages
+        ce, e = phone()
+        e.click('#nav-new')
+        e.fill('#f-title', 'Parking machine help')
+        set_steps(e, 'press the GREEN button\nInsert your ticket.\nPay by card!')
+        e.click('#save-guide'); e.wait_for_selector('#qr-panel:not([hidden])')
+        e.click('#act-publish'); e.wait_for_selector('#confirm-dialog[open]'); e.click('#confirm-ok')
+        e.wait_for_function("document.querySelector('#confirm-dialog').open && document.querySelector('#confirm-title').textContent.includes('Already in the Library')", timeout=20000)
+        check('Library: publishing the same steps again is refused as a duplicate', 'same steps' in e.text_content('#confirm-text'))
+        e.click('#confirm-ok')
+        e.wait_for_selector('#unsaved-banner:not([hidden])')
+        check('Library: the duplicate alert opens the existing guide', 'From the public library' in e.text_content('#unsaved-text') and 'level 2' in e.text_content('#guide-title'))
+        e.click('#nav-new')
+        e.fill('#f-title', 'Gate opener')
+        set_steps(e, 'Press the remote\nPay at www.cheap-gates.xyz')
+        e.click('#save-guide'); e.wait_for_selector('#qr-panel:not([hidden])')
+        e.click('#act-publish')
+        wait_toast(e, 'Links aren’t allowed')
+        check('Library: a guide with a link gets a clear message and isn’t sent', lib.rpc('search_guides', {'q': 'gate'}) == [] and e.is_hidden('#confirm-dialog[open]'))
+        ce.close()
 
         # ---------- phone A removes the parking guide
         a.click('#nav-library')
@@ -656,8 +712,11 @@ def run_library(browser):
         browse(dpage, 'x')
         check('Library: if the library can’t be reached, Browse says so', 'Couldn’t reach the library' in dpage.text_content('#browse-empty-text'))
         cd.close(); ca.close(); cb.close()
+        adm.close()
         real = [e for e in errors if 'Failed to load resource' not in e and 'ERR_' not in e and 'favicon' not in e]
         check('Library: no JavaScript errors', not real, real[:5])
+        # ---------- database attack tests
+        library_security.run(lib, check, admin_key)
     finally:
         lib.stop()
 

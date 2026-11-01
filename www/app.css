@@ -398,6 +398,9 @@ body.editing .tabbar { display: none; }
 #guide-publish, #guide-report { margin-top: 22px; }
 .row:disabled { opacity: .45; cursor: default; }
 #browse-footer { margin-top: 18px; }
+a.row { text-decoration: none; }
+#contact-row { margin-top: 22px; }
+.scan-result .cloud-where { color: var(--label); font-size: 15px; margin: 0 8px 10px; }
 .alert-actions button:active { background: var(--press); }
 
 #toast {

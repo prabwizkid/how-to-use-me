@@ -763,7 +763,7 @@ async function showGuide(g, saved, source) {
     const n = (APP.libraryMeta && APP.libraryMeta.downloads) || 0;
     $('#unsaved-text').textContent = fromLibrary
       ? `From the public library. Downloaded ${n} time${n === 1 ? '' : 's'}.`
-      : 'You scanned this guide. It isn’t saved on this phone yet.';
+      : 'Made by whoever printed this label. How To Use Me hasn’t checked it.';
     $('#save-scanned').textContent = fromLibrary ? 'Download' : 'Save to Guides';
   }
   $('#act-edit').hidden = !saved;
@@ -910,11 +910,15 @@ async function handleScanned(text, fromLink) {
     show('scan');
     setStatus(st, 'That QR code isn’t a How To Use Me label.');
     const r = $('#scan-result');
-    r.innerHTML = '<p class="small"></p>';
-    $('p', r).textContent = 'It contains: ' + text;
-    if (/^https?:\/\//i.test(text)) {
+    r.innerHTML = '<p></p>';
+    let host = '';
+    try { const u = new URL(text); if (/^https?:$/.test(u.protocol)) host = u.hostname; } catch (e) { /* not a link */ }
+    $('p', r).textContent = host
+      ? `It opens a page on ${host}. Only open it if you trust whoever put up the code.`
+      : 'It contains: ' + text;
+    if (host) {
       const a = document.createElement('a');
-      a.href = text; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'Open this link';
+      a.className = 'btn filled'; a.href = text; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = 'Open ' + host;
       r.appendChild(a);
     }
     return false;
@@ -940,11 +944,16 @@ async function handleScanned(text, fromLink) {
   }
   if (info.u) {
     show('scan');
-    setStatus(st, 'This guide is stored in the owner’s cloud.');
+    let host = '';
+    try { const u = new URL(info.u); if (/^https?:$/.test(u.protocol)) host = u.hostname; } catch (e) { /* bad link */ }
+    if (!host) { setStatus(st, 'This label’s link is broken.', true); return true; }
+    setStatus(st, 'This guide is stored in someone’s cloud.');
     const r = $('#scan-result');
-    r.innerHTML = '<a class="btn filled" id="open-cloud" target="_blank" rel="noopener">Open Instructions</a><p>To keep it, download the page there and import it in Guides.</p>';
+    // Never opened automatically: show where it goes and let the person decide.
+    r.innerHTML = '<p class="cloud-where"></p><a class="btn filled" id="open-cloud" target="_blank" rel="noopener noreferrer"></a><p>To keep it, download the page there and import it in Guides.</p>';
+    $('.cloud-where', r).textContent = `It opens a page on ${host}. Only open it if you trust whoever made the label.`;
     $('#open-cloud').href = info.u;
-    if (!fromLink) window.open(info.u, '_blank', 'noopener');
+    $('#open-cloud').textContent = 'Open ' + host;
     return true;
   }
   show('scan');
@@ -955,13 +964,13 @@ async function handleScanned(text, fromLink) {
 /* -------------------------------------------------------- public library */
 // Talks to the Supabase project's REST API (PostgREST). Only the functions in supabase/schema.sql are callable.
 const CONFIG = window.HTU_CONFIG || {};
-class LibError extends Error { constructor(msg, kind, status) { super(msg); this.kind = kind; this.status = status; } }
+class LibError extends Error { constructor(msg, kind, status, hint) { super(msg); this.kind = kind; this.status = status; this.hint = hint || ''; } }
 function libReady() { return !!(CONFIG.libraryRest || CONFIG.libraryUrl); }
 function libBase() { return CONFIG.libraryRest || String(CONFIG.libraryUrl).replace(/\/+$/, '') + '/rest/v1'; }
-function friendlyLibError(status, msg) {
-  if (/not allowed/i.test(msg)) return 'This guide was published from another phone, so it can’t be changed here.';
-  if (/too large/i.test(msg)) return 'The photos are too big to publish. Remove a few photos and try again.';
-  if (/check constraint/i.test(msg)) return 'This guide needs a title and at least one step before it can be published.';
+function friendlyLibError(status, msg, hint) {
+  // The library's own rule messages are written for people; anything technical gets a plain fallback.
+  if (hint && msg && !/violates|relation|column|function|permission|syntax|PGRST/i.test(msg)) return msg;
+  if (status === 401 || status === 403) return 'The library refused this request.';
   return `The library had a problem${status ? ' (' + status + ')' : ''}. Try again in a moment.`;
 }
 async function libCall(fn, body, timeout = 20000) {
@@ -984,19 +993,130 @@ async function libCall(fn, body, timeout = 20000) {
   const text = await res.text();
   let data = null;
   try { data = text ? JSON.parse(text) : null; } catch (e) { /* not JSON */ }
-  if (!res.ok) throw new LibError(friendlyLibError(res.status, (data && data.message) || ''), 'server', res.status);
+  if (!res.ok) {
+    const hint = (data && data.hint) || '';
+    throw new LibError(friendlyLibError(res.status, (data && data.message) || '', hint), 'server', res.status, hint);
+  }
   return data;
 }
 function randomSecret() {
   return b64urlEncode(crypto.getRandomValues(new Uint8Array(32)));
 }
-async function deviceId() {
-  let id = await kvGet('deviceId');
-  if (!id) { id = 'dev-' + randomSecret().slice(0, 24); await kvSet('deviceId', id); }
-  return id;
+// ---- proof-of-work puzzle: find n so sha256(token + ':' + n) starts with `bits` zero bits.
+// Runs in a background worker; takes about a second on a phone.
+const POW_SRC = `
+const K = new Uint32Array([0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2]);
+const W = new Uint32Array(64);
+function firstWord(str) { // first 32 bits of sha256 for an ASCII string of at most 55 characters
+  const len = str.length;
+  W.fill(0, 0, 16);
+  for (let i = 0; i < len; i++) W[i >> 2] |= str.charCodeAt(i) << (24 - (i & 3) * 8);
+  W[len >> 2] |= 0x80 << (24 - (len & 3) * 8);
+  W[15] = len * 8;
+  for (let i = 16; i < 64; i++) {
+    const a = W[i - 15], b = W[i - 2];
+    const s0 = ((a >>> 7) | (a << 25)) ^ ((a >>> 18) | (a << 14)) ^ (a >>> 3);
+    const s1 = ((b >>> 17) | (b << 15)) ^ ((b >>> 19) | (b << 13)) ^ (b >>> 10);
+    W[i] = (W[i - 16] + s0 + W[i - 7] + s1) | 0;
+  }
+  let a = 0x6a09e667, b = 0xbb67ae85, c = 0x3c6ef372, d = 0xa54ff53a, e = 0x510e527f, f = 0x9b05688c, g = 0x1f83d9ab, h = 0x5be0cd19;
+  for (let i = 0; i < 64; i++) {
+    const S1 = ((e >>> 6) | (e << 26)) ^ ((e >>> 11) | (e << 21)) ^ ((e >>> 25) | (e << 7));
+    const t1 = (h + S1 + ((e & f) ^ (~e & g)) + K[i] + W[i]) | 0;
+    const S0 = ((a >>> 2) | (a << 30)) ^ ((a >>> 13) | (a << 19)) ^ ((a >>> 22) | (a << 10));
+    const t2 = (S0 + ((a & b) ^ (a & c) ^ (b & c))) | 0;
+    h = g; g = f; f = e; e = (d + t1) | 0; d = c; c = b; b = a; a = (t1 + t2) | 0;
+  }
+  return (a + 0x6a09e667) >>> 0;
+}
+function solve(token, bits) {
+  const mask = bits <= 0 ? 0 : (0xffffffff << (32 - bits)) >>> 0;
+  for (let n = 0; ; n++) if (((firstWord(token + ':' + n) & mask) >>> 0) === 0) return String(n);
+}
+if (typeof WorkerGlobalScope !== 'undefined') self.onmessage = e => postMessage(solve(e.data.token, e.data.bits));
+`;
+function solvePuzzle(token, bits) {
+  if (!bits) return Promise.resolve('0');
+  return new Promise((resolve, reject) => {
+    let w;
+    try {
+      w = new Worker(URL.createObjectURL(new Blob([POW_SRC], { type: 'text/javascript' })));
+    } catch (e) {
+      // No workers available: solve on the page instead.
+      try { resolve(new Function(POW_SRC + '; return solve;')()(token, bits)); } catch (err) { reject(err); }
+      return;
+    }
+    const t = setTimeout(() => { w.terminate(); reject(new LibError('The security check took too long. Try again.', 'pow')); }, 60000);
+    w.onmessage = e => { clearTimeout(t); w.terminate(); resolve(e.data); };
+    w.onerror = e => { clearTimeout(t); w.terminate(); reject(new LibError('The security check failed. Try again.', 'pow')); };
+    w.postMessage({ token, bits });
+  });
+}
+/** Calls a library function that needs the puzzle (publishing, reporting). */
+async function libCallWithPuzzle(fn, body) {
+  const ch = await libCall('get_challenge', {});
+  const nonce = await solvePuzzle(ch.token, ch.bits);
+  return libCall(fn, { ...body, p_token: ch.token, p_nonce: nonce });
+}
+
+// ---- the library's rules, checked on the phone first so people get clear messages
+// (the library checks them again; these only save a wasted upload).
+function textProblem(label, v, min, max, multiline) {
+  v = String(v || '');
+  if (v.trim().length < min) return min <= 1 ? `${label} can’t be empty.` : `${label} is too short.`;
+  if (v.length > max) return `${label} is too long (${max} characters at most).`;
+  if (multiline ? /[\x01-\x09\x0B-\x1F\x7F]/.test(v) : /[\x01-\x1F\x7F]/.test(v)) return `${label} contains characters that aren’t allowed.`;
+  if (/[​-‏‪-‮⁠-⁩﻿­]/.test(v)) return `${label} contains hidden characters.`;
+  if (/[^\s@]+@[^\s@]+\.[a-z]{2,}/i.test(v)) return `E-mail addresses aren’t allowed in published guides (${label.toLowerCase()}).`;
+  if (/(https?:\/\/|ftp:\/\/|www\.|\b[a-z0-9-]+\.(com|net|org|io|ly|co|app|xyz|me|info|biz|ru|cn|tk|gg|link|site|online|shop|top|live|click|sh)\b)/i.test(v))
+    return `Links aren’t allowed in published guides (${label.toLowerCase()}).`;
+  if (/\S{41,}/.test(v)) return `${label} has a word that’s too long. Published guides can only contain readable text.`;
+  return '';
+}
+function libraryProblem(g) {
+  const title = (g.title || '').trim();
+  let p = textProblem('The title', title, 3, 120, false);
+  if (p) return p;
+  if (!/\p{L}{2,}/u.test(title)) return 'The title needs real words.';
+  p = textProblem('“What it’s for”', (g.item || '').trim(), 0, 120, false) || textProblem('The location', (g.location || '').trim(), 0, 120, false)
+    || textProblem('The notes', (g.notes || '').trim(), 0, 1000, true);
+  if (p) return p;
+  const steps = g.steps.map(x => x.trim());
+  if (!steps.length) return 'A guide needs at least one step.';
+  if (steps.length > 60) return 'A guide can have 60 steps at most.';
+  for (let i = 0; i < steps.length; i++) {
+    p = textProblem(`Step ${i + 1}`, steps[i], 2, 300, false);
+    if (p) return p;
+    if (!/\p{L}{2,}/u.test(steps[i])) return `Step ${i + 1} needs real words.`;
+  }
+  const norm = new Set(steps.map(x => x.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '')));
+  if (steps.length >= 3 && norm.size < Math.ceil(steps.length * 0.7)) return 'Too many steps are repeated.';
+  const words = (title + ' ' + steps.join(' ')).toLowerCase().split(/[^a-z]+/).filter(w => w.length >= 2);
+  const good = words.filter(w => /[aeiouy]/.test(w) && !/[bcdfghjklmnpqrstvwxz]{5,}/.test(w)).length;
+  if (words.length >= 4 && good < words.length * 0.6) return 'This doesn’t look like readable instructions. Check the steps for scanning mistakes.';
+  return '';
+}
+/** Re-draws photos for publishing: this strips hidden data and keeps each under the library's size limit. */
+async function photosForLibrary(g, max = 4, maxBytes = 240 * 1024) {
+  const out = [];
+  const seen = new Set();
+  let skipped = 0;
+  for (const p of g.photos) {
+    if (out.length >= max) { skipped++; continue; }
+    let src = '';
+    for (const [px, q] of [[900, 0.72], [800, 0.62], [640, 0.55], [480, 0.5], [360, 0.45]]) {
+      src = await shrinkDataUrl(p.src, px, q, true);
+      if (src && (src.length - 23) * 0.75 <= maxBytes) break;
+      src = '';
+    }
+    if (!src || seen.has(src)) { skipped++; continue; }
+    seen.add(src);
+    out.push({ src, step: Number.isInteger(p.step) && p.step < g.steps.length ? p.step : null });
+  }
+  return { photos: out, skipped };
 }
 /** Re-encodes a photo smaller so published guides stay quick to download. */
-async function shrinkDataUrl(src, max, quality) {
+async function shrinkDataUrl(src, max, quality, strict) {
   try {
     const img = await loadImage(src);
     const scale = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
@@ -1006,7 +1126,7 @@ async function shrinkDataUrl(src, max, quality) {
     x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height);
     x.drawImage(img, 0, 0, c.width, c.height);
     return c.toDataURL('image/jpeg', quality);
-  } catch (e) { return src; }
+  } catch (e) { return strict ? '' : src; }
 }
 
 let browseSeq = 0, browseTimer = null;
@@ -1096,33 +1216,42 @@ function renderPublishRows(g) {
 }
 async function publishGuide(g) {
   const updating = !!g.pubId;
-  if (!g.steps.length) return toast('Add at least one step before publishing.');
-  if (!updating && !(await askConfirm('Anyone can find and download it in Browse. Leave out personal details like door codes, Wi-Fi passwords or home addresses.', 'Publish', 'Publish to Library?', false))) return;
+  const problem = libraryProblem(g);
+  if (problem) return toast(problem, 6000);
+  if (!updating && !(await askConfirm('Anyone can find and download it in Browse. Leave out personal details like door codes, Wi-Fi passwords or home addresses. Photos appear after a quick review.', 'Publish', 'Publish to Library?', false))) return;
   const btn = $('#act-publish');
   btn.disabled = true;
-  toast(updating ? 'Updating public copy…' : 'Publishing…', 20000);
+  toast(updating ? 'Updating public copy…' : 'Publishing…', 60000);
   try {
-    let photos = [];
-    for (const p of g.photos) photos.push({ src: await shrinkDataUrl(p.src, 1000, 0.72), step: Number.isInteger(p.step) ? p.step : null });
-    let dropped = 0;
-    while (photos.length && photos.reduce((a, p) => a + p.src.length, 0) > 3500000) { photos.pop(); dropped++; }
+    const { photos, skipped } = await photosForLibrary(g);
     const secret = g.pubSecret || randomSecret();
-    const body = guide => ({ p_id: guide.pubId || null, p_secret: secret, p_guide: { title: g.title, item: g.item, location: g.location, steps: g.steps, notes: g.notes, photos } });
+    const body = id => ({ p_id: id || null, p_secret: secret, p_guide: { title: g.title.trim(), item: g.item.trim(), location: g.location.trim(), steps: g.steps.map(x => x.trim()), notes: g.notes.trim(), photos } });
     let r;
     try {
-      r = await libCall('publish_guide', body(g));
+      r = await libCallWithPuzzle('publish_guide', body(g.pubId));
     } catch (e) {
+      if (e.status === 409 && e.hint.startsWith('duplicate:')) {
+        const id = e.hint.slice('duplicate:'.length);
+        toast('', 1);
+        if (await askConfirm('Someone already published a guide with the same steps. Open it?', 'Open It', 'Already in the Library', false)) {
+          try { if (!(await openLibraryGuide(id))) toast('That guide is waiting for review right now.'); } catch (err) { toast(err.message, 5000); }
+        }
+        return;
+      }
       // The public copy was removed (or published elsewhere): offer to publish it again as a new guide.
-      if (updating && e.status && e.status < 500 && /another phone/.test(e.message)) {
+      if (updating && e.status === 403 && e.hint === 'not_owner') {
         if (!(await askConfirm('The public copy no longer exists or can’t be changed from this phone. Publish it again as a new guide?', 'Publish', 'Publish Again?', false))) return;
-        r = await libCall('publish_guide', body({}));
+        r = await libCallWithPuzzle('publish_guide', body(null));
       } else throw e;
     }
     Object.assign(g, { pubId: r.id, pubSecret: secret, pubAt: Date.parse(r.updated_at) || Date.now(), pubVersion: g.updatedAt });
     await dbPut(g);
-    toast(updating ? 'Public copy updated.' : 'Published. Anyone can now find it in Browse.' + (dropped ? ` ${dropped} photo${dropped === 1 ? ' was' : 's were'} left out to keep it small.` : ''), 5000);
+    const notes = [];
+    if (r.photos_pending) notes.push(`${r.photos_pending === 1 ? 'The photo appears' : 'Photos appear'} after a quick review.`);
+    if (skipped) notes.push(`${skipped} photo${skipped === 1 ? ' was' : 's were'} left out (4 at most).`);
+    toast((updating ? 'Public copy updated.' : 'Published. Anyone can now find it in Browse.') + (notes.length ? ' ' + notes.join(' ') : ''), 6000);
   } catch (e) {
-    toast(e.message, 6000);
+    toast(e.message, 7000);
   } finally {
     btn.disabled = false;
     if (APP.viewing === g) renderPublishRows(g);
@@ -1221,6 +1350,16 @@ async function importFiles(fileList) {
   return { imported, skipped, bad, last };
 }
 
+/* ---------------------------------------------------------- report sheet */
+function askReportReason() {
+  const dlg = $('#report-dialog');
+  dlg.returnValue = '';
+  return new Promise(res => {
+    dlg.addEventListener('close', () => res(['wrong', 'unsafe', 'spam', 'offensive', 'other'].includes(dlg.returnValue) ? dlg.returnValue : ''), { once: true });
+    dlg.showModal();
+  });
+}
+
 /* ---------------------------------------------------------- confirm box */
 function askConfirm(text, okLabel, title, destructive = true) {
   const dlg = $('#confirm-dialog');
@@ -1269,6 +1408,9 @@ async function renderSettings() {
     try { const e = await navigator.storage.estimate(); usage = `, ${(e.usage / 1048576).toFixed(1)} MB`; } catch (e) { /* ignore */ }
   }
   $('#storage-info').textContent = `${n} guide${n === 1 ? '' : 's'}${usage}`;
+  const mail = String(CONFIG.contactEmail || '');
+  $('#contact-row').hidden = !mail;
+  if (mail) { $('#contact-link').href = 'mailto:' + mail + '?subject=' + encodeURIComponent('How To Use Me'); $('#contact-value').textContent = mail; }
   $('#lib-status').textContent = libReady() ? (navigator.onLine === false ? 'Offline' : 'Connected') : 'Not Set Up';
   const pubs = (await dbAll()).filter(g => g.pubId).length;
   $('#lib-published').textContent = `${pubs} guide${pubs === 1 ? '' : 's'}`;
@@ -1361,9 +1503,11 @@ function wire() {
   $('#act-report').addEventListener('click', async () => {
     const g = APP.viewing;
     if (!g.libraryId) return;
-    if (!(await askConfirm('Report this guide if it’s wrong, unsafe, spam or offensive. Guides with several reports are hidden.', 'Report', 'Report Guide?'))) return;
+    const reason = await askReportReason();
+    if (!reason) return;
+    toast('Sending report…', 60000);
     try {
-      await libCall('report_guide', { p_id: g.libraryId, p_reporter: await deviceId(), p_reason: 'reported in app' });
+      await libCallWithPuzzle('report_guide', { p_id: g.libraryId, p_reason: reason });
       $('#act-report').disabled = true;
       toast('Thanks. The guide was reported.');
     } catch (e) { toast(e.message, 5000); }

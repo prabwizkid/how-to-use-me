@@ -18,14 +18,29 @@ Make "how to use" instructions for anything — a parking pay station, a tram ti
 
 ## Public library (search and download other people's guides)
 
-The **Browse** tab searches every guide people have published, and **Download** saves one to your phone. On your own guides, **Publish to Library** shares them, **Update Public Copy** sends your edits, and **Remove from Library** takes them down. A guide reported by 3 different phones is hidden automatically. Long guides that don't fit inside a QR code get a short label that opens their public copy.
+The **Browse** tab searches every guide people have published, and **Download** saves one to your phone. On your own guides, **Publish to Library** shares them, **Update Public Copy** sends your edits, and **Remove from Library** takes them down. Long guides that don't fit inside a QR code get a short label that opens their public copy.
 
 It runs on a free [Supabase](https://supabase.com) project:
 
-1. Create a project, open **SQL Editor**, paste [`supabase/schema.sql`](supabase/schema.sql) and run it.
-2. Put the project URL and its publishable (anon) key in [`www/config.js`](www/config.js), then publish the site.
+1. Create a project, open **SQL Editor**, paste [`supabase/schema.sql`](supabase/schema.sql) and run it (safe to re-run; it upgrades in place).
+2. In the SQL editor run `select library_private.admin_new_key();` once and keep the key in a password manager.
+3. Put the project URL, its publishable (anon) key and a contact e-mail in [`www/config.js`](www/config.js), then publish the site.
+4. Moderate at `/admin.html` with the admin key.
 
-No accounts are needed. Each published guide gets a random edit key that stays on the phone that published it (only its hash is stored), so only that phone can change or remove it. The app can only call the functions in `schema.sql`; the tables themselves can't be read or written directly.
+### What the database enforces
+
+Everything below is checked by the database itself, so a modified app or a script can't get around it. The app checks the same rules first only to show clear messages.
+
+- **Only guides can be stored.** A fixed set of fields (title, what it's for, location, steps, notes, photos), all plain text: no links, e-mail addresses, hidden or control characters, or long code-like strings. No other fields are accepted.
+- **Only real photos.** Up to 4 JPEG/PNG/WebP images of at most 250 KB, verified byte by byte (correct file signature, nothing appended after the image). SVG and anything else are refused. The app also re-draws photos before upload, stripping hidden data. Photos stay hidden until an admin approves them.
+- **No duplicates.** The same steps (ignoring case, spaces and punctuation) can't be published twice; the app offers to open the existing guide. Duplicate photos and padded repeated steps are refused.
+- **No empty or junk guides.** A real title and 1 to 60 real steps; garbled scanning text and words on the admin's blocked list are refused.
+- **Abuse limits.** Publishing and reporting need a small proof-of-work puzzle (about a second on a phone) and are rate limited per network and overall; publishing stops before the free database fills up. Download counts and reports count once per network (a salted hash of the address; addresses aren't stored).
+- **Moderation.** 3 reports from different networks hide a guide until reviewed. The admin page can approve or remove photos, restore, mark as fine (reports no longer hide it), hide, delete any guide (e.g. if someone loses their edit key), ban a publisher's network, edit blocked words and change limits.
+- **No direct access.** No table can be read or written through the API; internal helpers (including creating admin keys) can't be called. Public results never include edit-key hashes or network hashes.
+- **Ownership.** Each published guide has a random edit key kept on the publishing phone; only its hash is stored. Backups contain these keys, so only share backups with people you trust.
+
+The scanner never opens links on its own; it shows which website a label points to first, and marks guides stored inside a label (not from the library) as unchecked.
 
 ## Run it
 
@@ -59,4 +74,4 @@ Inside the store app, sharing and saving use the native share sheet and Document
 
 ## Tests
 
-`npm test` runs 108 end-to-end checks in a headless phone-sized browser: every capture method (with real OCR and PDF reading), saving, persistence, HTML export, QR generation, printing, scanning from a photo and from a live (simulated) camera, opening on a second "phone", long guides with cloud links, sharing, backup/restore, import, search, delete, offline mode and script-injection safety, plus the public library (publish, search, download, update, reports, removal, offline) against a local Postgres + PostgREST set up like Supabase. The library tests need Postgres server binaries and `POSTGREST=/path/to/postgrest` ([PostgREST releases](https://github.com/PostgREST/postgrest/releases)).
+`npm test` runs 185 end-to-end checks in a headless phone-sized browser: every capture method (with real OCR and PDF reading), saving, persistence, HTML export, QR generation, printing, scanning from a photo and from a live (simulated) camera, opening on a second "phone", long guides with cloud links, sharing, backup/restore, import, search, delete, offline mode and script-injection safety, plus the public library (publish, search, download, update, reports, removal, offline, admin page) and 66 attack tests against the library's rules, all against a local Postgres + PostgREST set up like Supabase. The library tests need Postgres server binaries and `POSTGREST=/path/to/postgrest` ([PostgREST releases](https://github.com/PostgREST/postgrest/releases)).

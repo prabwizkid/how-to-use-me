@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Library Admin</title>
+<link rel="icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="app.css">
+<style>
+  body.admin main { padding-bottom: 60px; }
+  .seg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; padding: 2px; margin: 4px 0 16px; background: var(--fill); border-radius: 9px; }
+  .seg button { min-height: 32px; border: 0; border-radius: 7px; background: none; font-size: 13px; font-weight: 500; cursor: pointer; }
+  .seg button.on { background: var(--card); box-shadow: 0 1px 3px rgba(0, 0, 0, .12); font-weight: 600; }
+  .card { background: var(--card); border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; }
+  .card h3 { margin: 0; font-size: 17px; }
+  .card .meta { font-size: 13px; color: var(--label-2); margin-top: 2px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .chip { font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 10px; background: var(--fill); }
+  .chip.red { background: rgba(255, 59, 48, .14); color: var(--red); }
+  .chip.orange { background: rgba(255, 149, 0, .16); color: var(--orange); }
+  .chip.green { background: rgba(52, 199, 89, .16); color: var(--green); }
+  .card ol { margin: 10px 0 0; padding-left: 22px; font-size: 15px; }
+  .card .notes { font-size: 14px; color: var(--label-2); margin-top: 8px; white-space: pre-wrap; }
+  .card .pics { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .card .pics img { width: 120px; height: 120px; object-fit: cover; border-radius: 8px; background: #fff; }
+  .card .acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .card .acts button { min-height: 34px; padding: 0 12px; border-radius: 17px; border: 0; background: var(--fill); color: var(--blue); font-size: 14px; font-weight: 600; cursor: pointer; }
+  .card .acts button.danger { color: var(--red); }
+  .card .acts button.go { background: var(--blue); color: #fff; }
+  .words { display: flex; flex-wrap: wrap; gap: 6px; }
+  .words .chip { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; padding: 5px 6px 5px 11px; }
+  .words .chip button { border: 0; background: none; color: var(--red); font-size: 16px; line-height: 1; cursor: pointer; }
+  .row.field input[type=number] { flex: 0 0 90px; text-align: right; border: 0; background: none; font: inherit; color: var(--label); outline: none; }
+  pre.out { white-space: pre-wrap; font-size: 13px; background: var(--card); border-radius: 10px; padding: 12px; overflow-wrap: anywhere; }
+  .empty-note { text-align: center; color: var(--label-2); padding: 30px 0; }
+</style>
+</head>
+<body class="admin">
+<main>
+  <header class="navbar always">
+    <span class="nav-left"></span>
+    <span class="nav-title">Library Admin</span>
+    <span class="nav-right"><button id="sign-out" class="nav-btn" hidden>Sign Out</button></span>
+  </header>
+
+  <section id="signin">
+    <h1 class="large-title">Library Admin</h1>
+    <ul class="list form">
+      <li class="row field stacked"><span class="row-label">Admin Key</span>
+        <input id="key" type="password" autocomplete="current-password" spellcheck="false" autocapitalize="off"></li>
+    </ul>
+    <p class="list-footer">The key made by <code>select library_private.admin_new_key();</code> in the Supabase SQL editor. It’s kept in this browser tab only.</p>
+    <button id="signin-btn" class="btn filled wide" style="margin-top:16px">Sign In</button>
+    <p id="signin-error" class="list-footer warn"></p>
+  </section>
+
+  <section id="panel" hidden>
+    <div class="seg" role="tablist">
+      <button data-tab="review" class="on" role="tab">Needs Review</button>
+      <button data-tab="all" role="tab">All Guides</button>
+      <button data-tab="words" role="tab">Blocked Words</button>
+      <button data-tab="limits" role="tab">Limits</button>
+    </div>
+
+    <div id="tab-list">
+      <label class="search"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" style="fill:none;stroke:currentColor"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg>
+        <input id="q" type="search" placeholder="Search guides" autocomplete="off"></label>
+      <div id="queue"></div>
+    </div>
+
+    <div id="tab-words" hidden>
+      <p class="section-header">Guides with these words or phrases can’t be published</p>
+      <div class="card"><div id="words" class="words"></div></div>
+      <ul class="list form">
+        <li class="row field"><span class="row-label">Add</span><input id="new-word" type="text" placeholder="word or short phrase" autocomplete="off"></li>
+        <li><button id="add-word" class="row action blue-text center-label"><span class="row-label">Block This Word</span></button></li>
+      </ul>
+    </div>
+
+    <div id="tab-limits" hidden>
+      <p class="section-header">Limits</p>
+      <ul class="list form" id="limits"></ul>
+      <button id="save-limits" class="btn filled wide" style="margin-top:16px">Save Limits</button>
+      <p id="usage" class="list-footer"></p>
+      <p class="section-header">Network check</p>
+      <ul class="list"><li><button id="whoami" class="row action blue-text center-label"><span class="row-label">Check How Networks Are Identified</span></button></li></ul>
+      <p class="list-footer">Limits and reports count per network. This shows which address the library sees for you; it should be your real public address.</p>
+      <pre id="whoami-out" class="out" hidden></pre>
+    </div>
+  </section>
+</main>
+<div id="toast" role="status" aria-live="polite" hidden></div>
+<script src="config.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>

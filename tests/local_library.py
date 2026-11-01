@@ -72,6 +72,7 @@ class LocalLibrary:
                    "grant usage on schema public to anon, authenticated;")
         # Supabase gives anon table rights by default; mimic that so the schema's revokes are really tested.
         self._psql("alter default privileges in schema public grant all on tables to anon, authenticated;")
+        self._psql("alter default privileges grant execute on functions to anon, authenticated;")
         schema_copy = self.dir / 'schema.sql'
         shutil.copy(SCHEMA, schema_copy)
         if self.as_user:
@@ -96,9 +97,10 @@ class LocalLibrary:
                 time.sleep(0.2)
         return self
 
-    def rpc(self, fn, body):
-        req = urllib.request.Request(f'{self.url}/rpc/{fn}', data=json.dumps(body).encode(),
-                                     headers={'Content-Type': 'application/json'}, method='POST')
+    def rpc(self, fn, body, headers=None):
+        h = {'Content-Type': 'application/json'}
+        h.update(headers or {})
+        req = urllib.request.Request(f'{self.url}/rpc/{fn}', data=json.dumps(body).encode(), headers=h, method='POST')
         with urllib.request.urlopen(req, timeout=10) as r:
             raw = r.read()
             return json.loads(raw) if raw else None
@@ -112,6 +114,14 @@ class LocalLibrary:
 
     def sql(self, sql):
         return self._psql(sql)
+
+    def sql_value(self, sql):
+        cmd = self.as_user + [_bin('psql'), '-h', str(self.dir), '-p', str(PG_PORT), '-U', 'postgres', '-d', 'postgres',
+                              '-v', 'ON_ERROR_STOP=1', '-q', '-t', '-A', '-c', sql]
+        r = subprocess.run(cmd, capture_output=True, text=True)
+        if r.returncode:
+            raise RuntimeError(r.stderr)
+        return r.stdout.strip()
 
     def stop(self):
         for p in reversed(self.procs):

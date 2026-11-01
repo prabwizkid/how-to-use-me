@@ -238,6 +238,12 @@ function normalizeGuide(d) {
     steps: Array.isArray(d.steps) ? d.steps.map(String).filter(s => s.trim()) : [],
     notes: String(d.notes || ''),
     cloudUrl: String(d.cloudUrl || ''),
+    // Public library: pubId/pubSecret when this phone published it; libraryId when downloaded from it.
+    pubId: String(d.pubId || ''),
+    pubSecret: String(d.pubSecret || ''),
+    pubAt: Number(d.pubAt) || 0,
+    pubVersion: Number(d.pubVersion) || 0,
+    libraryId: String(d.libraryId || ''),
     photos: Array.isArray(d.photos) ? d.photos.filter(p => p && p.src) : [],
     createdAt: d.createdAt || now,
     updatedAt: d.updatedAt || now,
@@ -273,6 +279,8 @@ function guideQrInfo(g) {
       return { url, mode: 'embedded', droppedNotes: c.n === '' && !!g.notes };
     }
   }
+  const pub = g.pubId || g.libraryId;
+  if (pub) return { url: mk(cloud ? [id, ['p', encodeURIComponent(pub)], cloud] : [id, ['p', encodeURIComponent(pub)]]), mode: 'library' };
   if (cloud) return { url: mk([id, cloud]), mode: 'cloud' };
   return { url: mk([id]), mode: 'local' };
 }
@@ -727,7 +735,10 @@ async function saveDraft() {
 function frameFit(frame) {
   try {
     const doc = frame.contentDocument;
-    if (doc && doc.documentElement) frame.style.height = Math.max(300, doc.documentElement.scrollHeight + 20) + 'px';
+    if (!doc || !doc.documentElement) return;
+    // Shrink first: otherwise the page can never measure shorter than the previous guide's height.
+    frame.style.height = '0px';
+    frame.style.height = Math.max(120, doc.documentElement.scrollHeight + 8) + 'px';
   } catch (e) { /* cross-origin, ignore */ }
 }
 function renderInFrame(frame, html, embedded) {
@@ -740,15 +751,29 @@ function renderInFrame(frame, html, embedded) {
   };
   frame.srcdoc = html;
 }
-async function showGuide(g, saved) {
+async function showGuide(g, saved, source) {
   stopScan();
   if (!g.html) g.html = buildGuideHtml(g);
   APP.viewing = g;
   APP.viewingSaved = !!saved;
+  APP.viewingSource = saved ? 'mine' : (source || 'scan');
+  const fromLibrary = APP.viewingSource === 'library';
   $('#unsaved-banner').hidden = !!saved;
+  if (!saved) {
+    const n = (APP.libraryMeta && APP.libraryMeta.downloads) || 0;
+    $('#unsaved-text').textContent = fromLibrary
+      ? `From the public library. Downloaded ${n} time${n === 1 ? '' : 's'}.`
+      : 'You scanned this guide. It isn’t saved on this phone yet.';
+    $('#save-scanned').textContent = fromLibrary ? 'Download' : 'Save to Guides';
+  }
   $('#act-edit').hidden = !saved;
   $('#act-delete').hidden = !saved;
   $('#guide-manage').hidden = !saved;
+  $('#guide-report').hidden = !fromLibrary;
+  $('#report-note').hidden = !fromLibrary;
+  $('#act-report').disabled = false;
+  $('#guide-back').lastChild.textContent = fromLibrary ? 'Browse' : 'Guides';
+  renderPublishRows(saved ? g : null);
   $('#qr-panel').hidden = true;
   $('#act-qr').classList.remove('open');
   $('#guide-title').textContent = g.title;
@@ -772,7 +797,8 @@ function showQrPanel() {
     embedded: 'The steps are stored inside the code itself, so it works on any phone, even without this app or internet.' +
       (info.droppedNotes ? ' Notes only appear on the full page.' : ''),
     cloud: 'This guide is too long to fit inside a QR code, so the label opens it from your cloud link. Phones that have it saved open their own copy.',
-    local: 'This guide is too long to fit inside a QR code. It opens on phones that have it saved. Add a cloud link in Edit so any phone can open it.',
+    library: 'This guide is too long to fit inside a QR code, so the label opens its copy in the public library. Phones that have it saved open their own copy.',
+    local: 'This guide is too long to fit inside a QR code. It opens on phones that have it saved. Publish it to the library, or add a cloud link in Edit, so any phone can open it.',
   };
   let note = notes[info.mode];
   if (!baseIsUsable()) note += ' Other phones’ cameras can’t open it yet: set the app’s web address in Settings.';
@@ -874,7 +900,7 @@ function parseGuideLink(text) {
   if (!hash) return null;
   const p = new URLSearchParams(hash);
   if (!p.get('g')) return null;
-  return { id: p.get('g'), d: p.get('d'), u: p.get('u') };
+  return { id: p.get('g'), d: p.get('d'), u: p.get('u'), p: p.get('p') };
 }
 /** Opens whatever a QR code (or link) points to. Returns true if it was one of ours. */
 async function handleScanned(text, fromLink) {
@@ -903,6 +929,15 @@ async function handleScanned(text, fromLink) {
       return true;
     } catch (e) { console.error(e); }
   }
+  if (info.p) {
+    const mine = (await dbAll()).find(x => x.libraryId === info.p || x.pubId === info.p);
+    if (mine) { await showGuide(mine, true); return true; }
+    try {
+      if (await openLibraryGuide(info.p)) return true;
+    } catch (e) {
+      if (!info.u) { show('scan'); setStatus(st, e.message, true); return true; }
+    }
+  }
   if (info.u) {
     show('scan');
     setStatus(st, 'This guide is stored in the owner’s cloud.');
@@ -915,6 +950,193 @@ async function handleScanned(text, fromLink) {
   show('scan');
   setStatus(st, 'This guide isn’t saved on this phone and is too long to fit in the QR code. Ask the owner to share it with you (or add a cloud link), then import it.', true);
   return true;
+}
+
+/* -------------------------------------------------------- public library */
+// Talks to the Supabase project's REST API (PostgREST). Only the functions in supabase/schema.sql are callable.
+const CONFIG = window.HTU_CONFIG || {};
+class LibError extends Error { constructor(msg, kind, status) { super(msg); this.kind = kind; this.status = status; } }
+function libReady() { return !!(CONFIG.libraryRest || CONFIG.libraryUrl); }
+function libBase() { return CONFIG.libraryRest || String(CONFIG.libraryUrl).replace(/\/+$/, '') + '/rest/v1'; }
+function friendlyLibError(status, msg) {
+  if (/not allowed/i.test(msg)) return 'This guide was published from another phone, so it can’t be changed here.';
+  if (/too large/i.test(msg)) return 'The photos are too big to publish. Remove a few photos and try again.';
+  if (/check constraint/i.test(msg)) return 'This guide needs a title and at least one step before it can be published.';
+  return `The library had a problem${status ? ' (' + status + ')' : ''}. Try again in a moment.`;
+}
+async function libCall(fn, body, timeout = 20000) {
+  if (!libReady()) throw new LibError('The public library isn’t set up yet.', 'setup');
+  if (navigator.onLine === false) throw new LibError('You’re offline. Connect to the internet to use the library.', 'offline');
+  const headers = { 'Content-Type': 'application/json' };
+  if (CONFIG.libraryKey) {
+    headers.apikey = CONFIG.libraryKey;
+    // Older Supabase keys are JWTs and go in Authorization too; new sb_publishable_ keys must not.
+    if (!/^sb_/.test(CONFIG.libraryKey)) headers.Authorization = 'Bearer ' + CONFIG.libraryKey;
+  }
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), timeout);
+  let res;
+  try {
+    res = await fetch(libBase() + '/rpc/' + fn, { method: 'POST', headers, body: JSON.stringify(body), signal: ctl.signal });
+  } catch (e) {
+    throw new LibError('Couldn’t reach the library. Check your connection and try again.', 'network');
+  } finally { clearTimeout(timer); }
+  const text = await res.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch (e) { /* not JSON */ }
+  if (!res.ok) throw new LibError(friendlyLibError(res.status, (data && data.message) || ''), 'server', res.status);
+  return data;
+}
+function randomSecret() {
+  return b64urlEncode(crypto.getRandomValues(new Uint8Array(32)));
+}
+async function deviceId() {
+  let id = await kvGet('deviceId');
+  if (!id) { id = 'dev-' + randomSecret().slice(0, 24); await kvSet('deviceId', id); }
+  return id;
+}
+/** Re-encodes a photo smaller so published guides stay quick to download. */
+async function shrinkDataUrl(src, max, quality) {
+  try {
+    const img = await loadImage(src);
+    const scale = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(img.naturalWidth * scale)); c.height = Math.max(1, Math.round(img.naturalHeight * scale));
+    const x = c.getContext('2d');
+    x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height);
+    x.drawImage(img, 0, 0, c.width, c.height);
+    return c.toDataURL('image/jpeg', quality);
+  } catch (e) { return src; }
+}
+
+let browseSeq = 0, browseTimer = null;
+function browseMessage(title, text, retry) {
+  $('#browse-list').hidden = true;
+  $('#browse-header').hidden = true;
+  $('#browse-empty').hidden = false;
+  $('#browse-empty-title').textContent = title;
+  $('#browse-empty-text').textContent = text;
+  $('#browse-retry').hidden = !retry;
+}
+async function renderBrowse() {
+  const seq = ++browseSeq;
+  const q = $('#browse-search').value.trim();
+  const list = $('#browse-list');
+  if (!libReady()) return browseMessage('Library Not Set Up', 'The public library hasn’t been connected to this app yet.', false);
+  list.setAttribute('aria-busy', 'true');
+  let rows;
+  try {
+    rows = await libCall('search_guides', { q, lim: 40 });
+  } catch (e) {
+    if (seq === browseSeq) { list.removeAttribute('aria-busy'); browseMessage('Couldn’t Load Guides', e.message, e.kind !== 'setup'); }
+    return;
+  }
+  if (seq !== browseSeq) return; // a newer search is on its way
+  list.removeAttribute('aria-busy');
+  list.innerHTML = '';
+  for (const r of rows || []) {
+    const li = document.createElement('li');
+    li.className = 'guide-row';
+    li.dataset.id = r.id;
+    li.tabIndex = 0;
+    li.setAttribute('role', 'button');
+    const where = r.location || r.item;
+    const sub = [`${r.step_count} step${r.step_count === 1 ? '' : 's'}`, where, `${r.downloads} download${r.downloads === 1 ? '' : 's'}`].filter(Boolean).join(' · ');
+    li.innerHTML = `<span class="thumb none"><svg class="ico"><use href="#i-guides"/></svg></span><span class="txt"><span class="t">${esc(r.title)}</span><span class="s" style="display:block">${esc(sub)}</span></span><svg class="ico chev"><use href="#i-chev"/></svg>`;
+    const open = async () => {
+      li.setAttribute('aria-busy', 'true');
+      try {
+        if (!(await openLibraryGuide(r.id))) { toast('This guide is no longer in the library.'); renderBrowse(); }
+      } catch (e) { toast(e.message, 5000); }
+      li.removeAttribute('aria-busy');
+    };
+    li.onclick = open;
+    li.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } };
+    list.appendChild(li);
+  }
+  $('#browse-header').textContent = q ? 'Results' : 'Most Downloaded';
+  if (!rows || !rows.length) {
+    return browseMessage(q ? `No Results for “${q}”` : 'No Guides Yet',
+      q ? 'Try another word, like the name of the machine or place.' : 'Be the first: open one of your guides and tap Publish to Library.', false);
+  }
+  list.hidden = false;
+  $('#browse-header').hidden = false;
+  $('#browse-empty').hidden = true;
+}
+/** Opens a published guide. Shows your own copy instead if you already have it. Returns false if it's gone. */
+async function openLibraryGuide(id) {
+  const mine = (await dbAll()).find(x => x.libraryId === id || x.pubId === id);
+  if (mine) { await showGuide(mine, true); return true; }
+  const d = await libCall('get_guide', { p_id: id });
+  if (!d) return false;
+  APP.libraryMeta = { id: d.id, downloads: d.downloads || 0 };
+  const g = normalizeGuide({
+    id: newId(), title: d.title, item: d.item, location: d.location, steps: d.steps, notes: d.notes, libraryId: d.id,
+    photos: (d.photos || []).map(p => ({ id: newId(), src: p.src, step: Number.isInteger(p.step) ? p.step : null })),
+    createdAt: Date.parse(d.created_at) || Date.now(), updatedAt: Date.parse(d.updated_at) || Date.now(),
+  });
+  await showGuide(g, false, 'library');
+  return true;
+}
+function renderPublishRows(g) {
+  const box = $('#guide-publish');
+  const status = $('#pub-status');
+  box.hidden = !g;
+  if (!g) { status.textContent = ''; return; }
+  const published = !!g.pubId;
+  // Downloaded guides belong to someone else, so they aren't re-published as duplicates.
+  box.hidden = !!g.libraryId && !published;
+  $('#act-publish .row-label').textContent = published ? 'Update Public Copy' : 'Publish to Library';
+  $('#row-unpublish').hidden = !published;
+  if (!libReady()) status.textContent = 'The public library isn’t connected yet.';
+  else if (!published) status.textContent = g.libraryId ? 'You downloaded this guide from the library.' : 'Anyone will be able to find and download it in Browse.';
+  else status.textContent = `Published ${new Date(g.pubAt).toLocaleDateString()}. Anyone can find it in Browse.` +
+    (g.updatedAt > g.pubVersion ? ' You’ve edited it since then; tap Update Public Copy to share the changes.' : '');
+  $('#act-publish').disabled = !libReady();
+}
+async function publishGuide(g) {
+  const updating = !!g.pubId;
+  if (!g.steps.length) return toast('Add at least one step before publishing.');
+  if (!updating && !(await askConfirm('Anyone can find and download it in Browse. Leave out personal details like door codes, Wi-Fi passwords or home addresses.', 'Publish', 'Publish to Library?', false))) return;
+  const btn = $('#act-publish');
+  btn.disabled = true;
+  toast(updating ? 'Updating public copy…' : 'Publishing…', 20000);
+  try {
+    let photos = [];
+    for (const p of g.photos) photos.push({ src: await shrinkDataUrl(p.src, 1000, 0.72), step: Number.isInteger(p.step) ? p.step : null });
+    let dropped = 0;
+    while (photos.length && photos.reduce((a, p) => a + p.src.length, 0) > 3500000) { photos.pop(); dropped++; }
+    const secret = g.pubSecret || randomSecret();
+    const body = guide => ({ p_id: guide.pubId || null, p_secret: secret, p_guide: { title: g.title, item: g.item, location: g.location, steps: g.steps, notes: g.notes, photos } });
+    let r;
+    try {
+      r = await libCall('publish_guide', body(g));
+    } catch (e) {
+      // The public copy was removed (or published elsewhere): offer to publish it again as a new guide.
+      if (updating && e.status && e.status < 500 && /another phone/.test(e.message)) {
+        if (!(await askConfirm('The public copy no longer exists or can’t be changed from this phone. Publish it again as a new guide?', 'Publish', 'Publish Again?', false))) return;
+        r = await libCall('publish_guide', body({}));
+      } else throw e;
+    }
+    Object.assign(g, { pubId: r.id, pubSecret: secret, pubAt: Date.parse(r.updated_at) || Date.now(), pubVersion: g.updatedAt });
+    await dbPut(g);
+    toast(updating ? 'Public copy updated.' : 'Published. Anyone can now find it in Browse.' + (dropped ? ` ${dropped} photo${dropped === 1 ? ' was' : 's were'} left out to keep it small.` : ''), 5000);
+  } catch (e) {
+    toast(e.message, 6000);
+  } finally {
+    btn.disabled = false;
+    if (APP.viewing === g) renderPublishRows(g);
+  }
+}
+async function unpublishGuide(g) {
+  if (!(await askConfirm('It will disappear from Browse. Copies people already downloaded stay on their phones.', 'Remove', 'Remove from Library?'))) return;
+  try {
+    await libCall('unpublish_guide', { p_id: g.pubId, p_secret: g.pubSecret });
+  } catch (e) { return toast(e.message, 6000); }
+  Object.assign(g, { pubId: '', pubSecret: '', pubAt: 0, pubVersion: 0 });
+  await dbPut(g);
+  toast('Removed from the library.');
+  if (APP.viewing === g) renderPublishRows(g);
 }
 
 /* ------------------------------------------------------ library & backup */
@@ -1000,8 +1222,10 @@ async function importFiles(fileList) {
 }
 
 /* ---------------------------------------------------------- confirm box */
-function askConfirm(text, okLabel, title) {
+function askConfirm(text, okLabel, title, destructive = true) {
   const dlg = $('#confirm-dialog');
+  $('#confirm-ok').classList.toggle('destructive', destructive);
+  $('#confirm-ok').classList.toggle('strong', !destructive);
   $('#confirm-title').textContent = title || 'Are you sure?';
   $('#confirm-text').textContent = text;
   $('#confirm-ok').textContent = okLabel || 'Delete';
@@ -1018,7 +1242,8 @@ function show(name) {
   if (name !== 'scan') stopScan();
   $$('.view').forEach(v => { v.hidden = v.id !== 'view-' + name; });
   $$('[data-nav]').forEach(b => {
-    const on = b.dataset.nav === name || (name === 'guide' && b.dataset.nav === 'library');
+    const on = b.dataset.nav === name ||
+      (name === 'guide' && b.dataset.nav === (APP.viewingSource === 'library' ? 'browse' : 'library'));
     b.classList.toggle('active', on);
     if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
   });
@@ -1026,6 +1251,7 @@ function show(name) {
   document.body.classList.remove('scrolled');
   if (name === 'library') renderLibrary();
   if (name === 'settings') renderSettings();
+  if (name === 'browse') renderBrowse();
   window.scrollTo(0, 0);
 }
 async function renderSettings() {
@@ -1043,6 +1269,9 @@ async function renderSettings() {
     try { const e = await navigator.storage.estimate(); usage = `, ${(e.usage / 1048576).toFixed(1)} MB`; } catch (e) { /* ignore */ }
   }
   $('#storage-info').textContent = `${n} guide${n === 1 ? '' : 's'}${usage}`;
+  $('#lib-status').textContent = libReady() ? (navigator.onLine === false ? 'Offline' : 'Connected') : 'Not Set Up';
+  const pubs = (await dbAll()).filter(g => g.pubId).length;
+  $('#lib-published').textContent = `${pubs} guide${pubs === 1 ? '' : 's'}`;
 }
 
 /* ------------------------------------------------------------------ wire */
@@ -1084,7 +1313,7 @@ function wire() {
     openEditor(null);
     $(b.dataset.start === 'camera' ? '#in-camera' : '#in-images').click();
   }));
-  $('#guide-back').addEventListener('click', () => show('library'));
+  $('#guide-back').addEventListener('click', () => show(APP.viewingSource === 'library' ? 'browse' : 'library'));
   $('#lib-add').addEventListener('click', () => openEditor(null));
   // Like iOS: the small title fades into the bar once the large title scrolls away.
   window.addEventListener('scroll', () => document.body.classList.toggle('scrolled', window.scrollY > 36), { passive: true });
@@ -1120,11 +1349,28 @@ function wire() {
   });
   $('#save-scanned').addEventListener('click', async () => {
     const g = APP.viewing;
+    const fromLibrary = APP.viewingSource === 'library';
     g.html = buildGuideHtml(g);
     await dbPut(g);
-    toast('Saved to your guides.');
+    if (fromLibrary && g.libraryId) libCall('count_download', { p_id: g.libraryId }).catch(() => {});
+    toast(fromLibrary ? 'Downloaded to your guides.' : 'Saved to your guides.');
     showGuide(g, true);
   });
+  $('#act-publish').addEventListener('click', () => publishGuide(APP.viewing));
+  $('#act-unpublish').addEventListener('click', () => unpublishGuide(APP.viewing));
+  $('#act-report').addEventListener('click', async () => {
+    const g = APP.viewing;
+    if (!g.libraryId) return;
+    if (!(await askConfirm('Report this guide if it’s wrong, unsafe, spam or offensive. Guides with several reports are hidden.', 'Report', 'Report Guide?'))) return;
+    try {
+      await libCall('report_guide', { p_id: g.libraryId, p_reporter: await deviceId(), p_reason: 'reported in app' });
+      $('#act-report').disabled = true;
+      toast('Thanks. The guide was reported.');
+    } catch (e) { toast(e.message, 5000); }
+  });
+  $('#browse-search').addEventListener('input', () => { clearTimeout(browseTimer); browseTimer = setTimeout(renderBrowse, 250); });
+  $('#browse-search').addEventListener('keydown', e => { if (e.key === 'Enter') { clearTimeout(browseTimer); renderBrowse(); e.target.blur(); } });
+  $('#browse-retry').addEventListener('click', renderBrowse);
 
   $('#qr-print').addEventListener('click', () => printLabels([APP.viewing]));
   $('#qr-download').addEventListener('click', async () => {
@@ -1211,5 +1457,5 @@ async function main() {
 }
 
 // Expose for tests / debugging
-window.HTU = { textToSteps, splitTitle, buildGuideHtml, guideFromHtml, guideQrInfo, unpackCompact, handleScanned, dbAll, readEditor, APP };
+window.HTU = { textToSteps, splitTitle, buildGuideHtml, guideFromHtml, guideQrInfo, unpackCompact, handleScanned, dbAll, readEditor, libCall, APP };
 main();

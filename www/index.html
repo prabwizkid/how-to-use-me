@@ -79,6 +79,29 @@
       </ul>
     </section>
 
+    <!-- BROWSE: public library -->
+    <section id="view-browse" class="view" data-title="Browse" hidden>
+      <header class="navbar">
+        <span class="nav-left"></span>
+        <span class="nav-title">Browse</span>
+        <span class="nav-right"></span>
+      </header>
+      <h1 class="large-title">Browse</h1>
+      <label class="search">
+        <svg class="ico" aria-hidden="true"><use href="#i-search"/></svg>
+        <input id="browse-search" type="search" placeholder="Search all guides" aria-label="Search the public library" enterkeyhint="search" autocomplete="off">
+      </label>
+      <p id="browse-header" class="section-header">Most Downloaded</p>
+      <ul id="browse-list" class="list"></ul>
+      <div id="browse-empty" class="empty" hidden>
+        <div class="empty-icon" aria-hidden="true"><svg class="ico"><use href="#i-globe"/></svg></div>
+        <p id="browse-empty-title" class="empty-title"></p>
+        <p id="browse-empty-text" class="empty-text"></p>
+        <div class="empty-actions"><button id="browse-retry" class="btn plain" hidden>Try Again</button></div>
+      </div>
+      <p class="list-footer center" id="browse-footer">Guides here are published by people using How To Use Me.</p>
+    </section>
+
     <!-- EDITOR (modal style) -->
     <section id="view-edit" class="view" data-title="New Guide" hidden>
       <header class="navbar always">
@@ -146,7 +169,7 @@
       <p id="guide-sub" class="guide-sub"></p>
 
       <div id="unsaved-banner" class="notice" hidden>
-        <p>You scanned this guide. It isn’t saved on this phone yet.</p>
+        <p id="unsaved-text">You scanned this guide. It isn’t saved on this phone yet.</p>
         <button id="save-scanned" class="btn filled small">Save to Guides</button>
       </div>
 
@@ -171,6 +194,17 @@
       </div>
 
       <iframe id="guide-frame" class="page-frame" title="Instructions" sandbox="allow-same-origin allow-modals"></iframe>
+
+      <ul class="list" id="guide-publish">
+        <li><button id="act-publish" class="row action"><span class="row-icon blue"><svg class="ico"><use href="#i-globe"/></svg></span><span class="row-label">Publish to Library</span></button></li>
+        <li id="row-unpublish" hidden><button id="act-unpublish" class="row action"><span class="row-icon gray"><svg class="ico"><use href="#i-trash"/></svg></span><span class="row-label red-text">Remove from Library</span></button></li>
+      </ul>
+      <p id="pub-status" class="list-footer"></p>
+
+      <ul class="list" id="guide-report" hidden>
+        <li><button id="act-report" class="row action red-text center-label"><span class="row-label">Report Guide</span></button></li>
+      </ul>
+      <p id="report-note" class="list-footer" hidden>Report a guide that’s wrong, unsafe, spam or offensive. Guides with several reports are hidden.</p>
 
       <ul class="list" id="guide-manage">
         <li><button id="act-edit" class="row action blue-text center-label"><span class="row-label">Edit Guide</span></button></li>
@@ -222,6 +256,13 @@
       </ul>
       <p class="list-footer">One file holds every guide and photo. Save it to Google Drive, Dropbox, iCloud, OneDrive or any cloud, or send it to a friend.</p>
 
+      <p class="section-header">Public Library</p>
+      <ul class="list">
+        <li class="row"><span class="row-label">Status</span><span id="lib-status" class="row-value"></span></li>
+        <li class="row"><span class="row-label">Published by You</span><span id="lib-published" class="row-value"></span></li>
+      </ul>
+      <p class="list-footer">Published guides can be found and downloaded by anyone in Browse. Only this phone can update or remove the ones you publish.</p>
+
       <p class="section-header">QR Codes</p>
       <ul class="list form">
         <li class="row field stacked"><span class="row-label">App Web Address</span><input id="set-url" type="url" placeholder="https://your-site.example/how-to-use-me/" autocomplete="off"></li>
@@ -240,6 +281,7 @@
 
   <nav class="tabbar" aria-label="Main">
     <button data-nav="library" id="nav-library"><svg class="ico"><use href="#i-guides"/></svg><span>Guides</span></button>
+    <button data-nav="browse" id="nav-browse"><svg class="ico"><use href="#i-globe"/></svg><span>Browse</span></button>
     <button data-nav="edit" id="nav-new"><svg class="ico"><use href="#i-plus-circle"/></svg><span>New</span></button>
     <button data-nav="scan" id="nav-scan"><svg class="ico"><use href="#i-scan"/></svg><span>Scan</span></button>
     <button data-nav="settings" id="nav-settings"><svg class="ico"><use href="#i-gear"/></svg><span>Settings</span></button>
@@ -280,6 +322,7 @@
 <script src="vendor/qrcode.js"></script>
 <script src="vendor/jsQR.js"></script>
 <script src="vendor/pako.min.js"></script>
+<script src="config.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

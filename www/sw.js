@@ -1,6 +1,6 @@
 // Offline support: core files cached on install; OCR/PDF engines cached the first time they're used.
-const VERSION = 'htu-v3';
-const CORE = ['./', 'index.html', 'app.css', 'app.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png',
+const VERSION = 'htu-v4';
+const CORE = ['./', 'index.html', 'app.css', 'app.js', 'config.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png',
   'vendor/qrcode.js', 'vendor/jsQR.js', 'vendor/pako.min.js'];
 
 self.addEventListener('install', e => {
@@ -13,7 +13,7 @@ self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
   // App shell: network first (so updates arrive), cache fallback when offline.
-  const isShell = req.mode === 'navigate' || /\/(index\.html|app\.js|app\.css)$/.test(new URL(req.url).pathname);
+  const isShell = req.mode === 'navigate' || /\/(index\.html|app\.js|app\.css|config\.js)$/.test(new URL(req.url).pathname);
   if (isShell) {
     e.respondWith(fetch(req).then(res => {
       const copy = res.clone();

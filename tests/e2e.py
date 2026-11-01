@@ -89,6 +89,7 @@ def main():
         with sync_playwright() as pw:
             browser = pw.chromium.launch(args=['--use-fake-ui-for-media-stream'])
             run_all(pw, browser)
+            run_library(browser)
             browser.close()
     finally:
         if server: server.terminate()
@@ -485,6 +486,180 @@ def run_all(pw, browser):
     real_errors = [e for e in errors if 'favicon' not in e and 'net::ERR_INTERNET_DISCONNECTED' not in e]
     check('No JavaScript errors during the whole run', not real_errors, real_errors[:5])
     ctx.close()
+
+def run_library(browser):
+    """Public library: publish, search, download, update, long-guide QR, report, remove.
+    Runs against a local Postgres + PostgREST set up exactly like the Supabase project."""
+    sys.path.insert(0, str(ROOT / 'tests'))
+    try:
+        from local_library import LocalLibrary
+        lib = LocalLibrary().start()
+    except Exception as e:
+        check('Public library test server starts (needs Postgres + PostgREST)', False, str(e)[:200])
+        return
+    errors = []
+    cfg = "window.HTU_CONFIG = { libraryRest: '%s' };" % lib.url
+
+    def phone(config=cfg):
+        ctx, page = new_page(browser, errors)
+        if config:
+            ctx.add_init_script(config)
+        open_app(page)
+        return ctx, page
+
+    def wait_toast(page, text, timeout=20000):
+        page.wait_for_function(f"document.querySelector('#toast').textContent.includes({json.dumps(text)})", timeout=timeout)
+
+    def browse(page, q):
+        page.click('#nav-browse')
+        page.fill('#browse-search', q)
+        page.press('#browse-search', 'Enter')
+        page.wait_for_function("!document.querySelector('#browse-list').hasAttribute('aria-busy')")
+        page.wait_for_timeout(300)
+
+    try:
+        # ---------- app with no library connected
+        c0, p0 = phone(config=None)
+        p0.click('#nav-browse')
+        p0.wait_for_selector('#browse-empty:not([hidden])')
+        check('Library: without a connection, Browse says it isn’t set up', 'Not Set Up' in p0.text_content('#browse-empty-title'))
+        c0.close()
+
+        # ---------- phone A makes and publishes a guide
+        ca, a = phone()
+        a.click('#nav-browse')
+        a.wait_for_selector('#browse-empty:not([hidden])')
+        check('Library: empty library invites people to publish', 'No Guides Yet' in a.text_content('#browse-empty-title'))
+        a.click('#nav-new')
+        a.uncheck('#ocr-toggle')
+        a.fill('#f-title', 'How to pay at the parking machine')
+        a.fill('#f-item', 'Parking pay station')
+        a.fill('#f-location', 'Garage B')
+        set_steps(a, 'Press the green button\nInsert your ticket\nPay by card')
+        a.set_input_files('#in-images', str(FIX / 'plant.png'))
+        a.wait_for_selector('#photo-list .photo')
+        a.click('#save-guide')
+        a.wait_for_selector('#qr-panel:not([hidden])')
+        check('Library: own guide offers Publish to Library', a.text_content('#act-publish').strip() == 'Publish to Library' and a.is_hidden('#row-unpublish'))
+        a.click('#act-publish')
+        a.wait_for_selector('#confirm-dialog[open]')
+        check('Library: publishing asks first and warns about personal details', 'Publish to Library?' in a.text_content('#confirm-title') and 'personal details' in a.text_content('#confirm-text'))
+        a.click('#confirm-ok')
+        wait_toast(a, 'Published')
+        check('Library: after publishing, the row becomes Update Public Copy and Remove appears',
+              a.text_content('#act-publish').strip() == 'Update Public Copy' and a.is_visible('#row-unpublish') and 'Published' in a.text_content('#pub-status'))
+        rows = lib.rpc('search_guides', {'q': 'parking'})
+        check('Library: the guide is in the shared database with its photo', len(rows) == 1 and rows[0]['photo_count'] == 1 and rows[0]['step_count'] == 3, rows)
+        pub_id = rows[0]['id']
+        secret = a.evaluate('HTU.APP.viewing.pubSecret')
+        check('Library: the edit key never goes into shared pages or the library', len(secret) >= 24 and secret not in a.evaluate('HTU.APP.viewing.html') and secret not in json.dumps(lib.rpc('get_guide', {'p_id': pub_id})))
+
+        # ---------- phone B finds and downloads it
+        cb, b = phone()
+        b.click('#nav-browse')
+        b.wait_for_selector('#browse-list .guide-row')
+        check('Library: Browse lists published guides with no search', 'parking machine' in b.text_content('#browse-list') and 'Most Downloaded' in b.text_content('#browse-header'))
+        browse(b, 'park mach')
+        check('Library: search matches the start of words', b.locator('#browse-list .guide-row').count() == 1 and 'Results' in b.text_content('#browse-header'))
+        browse(b, 'garage')
+        check('Library: search covers the location too', b.locator('#browse-list .guide-row').count() == 1)
+        browse(b, 'zzqqxx')
+        check('Library: no match shows a clear message', 'No Results' in b.text_content('#browse-empty-title') and b.is_hidden('#browse-list'))
+        browse(b, 'parking')
+        b.click('#browse-list .guide-row')
+        b.wait_for_selector('#view-guide:not([hidden])')
+        check('Library: opening a result shows the guide with a Download button',
+              'From the public library' in b.text_content('#unsaved-text') and b.text_content('#save-scanned').strip() == 'Download'
+              and 'Press the green button' in frame_text(b) and b.is_visible('#act-report'))
+        check('Library: Browse tab stays highlighted and Back returns to Browse', 'active' in (b.get_attribute('#nav-browse', 'class') or '') and 'Browse' in b.text_content('#guide-back'))
+        b.click('#save-scanned')
+        wait_toast(b, 'Downloaded')
+        b.wait_for_selector('#unsaved-banner', state='hidden')
+        imgs = b.evaluate("document.querySelector('#guide-frame').contentDocument.querySelectorAll('img').length")
+        b.wait_for_timeout(500)
+        check('Library: downloaded guide is saved on the phone with its photo', imgs == 1 and b.evaluate('HTU.dbAll().then(a => a.length)') == 1, imgs)
+        check('Library: download is counted', lib.rpc('get_guide', {'p_id': pub_id})['downloads'] == 1)
+        check('Library: a downloaded guide says where it came from and can’t be re-published as a duplicate',
+              'downloaded this guide from the library' in b.text_content('#pub-status') and b.is_hidden('#guide-publish'))
+        browse(b, 'parking')
+        b.click('#browse-list .guide-row')
+        b.wait_for_selector('#view-guide:not([hidden])')
+        check('Library: opening it again shows your saved copy, not a second download', b.is_hidden('#unsaved-banner') and b.evaluate('HTU.dbAll().then(a => a.length)') == 1)
+
+        # ---------- phone A edits and updates the public copy
+        a.click('#act-edit')
+        a.fill('#f-title', 'How to pay at the parking machine on level 2')
+        a.click('#save-guide')
+        a.wait_for_selector('#qr-panel:not([hidden])')
+        check('Library: after editing, the app reminds you to update the public copy', 'edited it since' in a.text_content('#pub-status'))
+        a.click('#act-publish')
+        wait_toast(a, 'Public copy updated')
+        check('Library: Update Public Copy changes the shared guide', lib.rpc('get_guide', {'p_id': pub_id})['title'].endswith('level 2'))
+        browse(b, 'parking')
+        check('Library: other phones see the new title', 'level 2' in b.text_content('#browse-list'))
+
+        # ---------- a long guide's label opens the public copy on any phone
+        import random
+        rnd = random.Random(11)
+        words = 'valve gauge pressure open close check turn left right pump filter boiler drain reset button lever panel record wait minutes slowly fully'.split()
+        a.click('#nav-new')
+        a.fill('#f-title', 'Boiler room procedure')
+        set_steps(a, '\n'.join(' '.join(rnd.choice(words) for _ in range(14)) + f' {rnd.randint(100, 999)}' for _ in range(40)))
+        a.click('#save-guide')
+        a.wait_for_selector('#qr-panel:not([hidden])')
+        check('Library: unpublished long guide suggests publishing it', 'Publish it to the library' in a.text_content('#qr-note'))
+        a.click('#act-publish'); a.wait_for_selector('#confirm-dialog[open]'); a.click('#confirm-ok')
+        wait_toast(a, 'Published')
+        a.click('#act-qr'); a.click('#act-qr')
+        long_url = a.get_attribute('#qr-img', 'data-url')
+        check('Library: published long guide gets a short label that points to the library', '&p=' in long_url and '&d=' not in long_url and len(long_url) < 200 and 'public library' in a.text_content('#qr-note'), long_url)
+        cc, c = phone()
+        open_app(c, long_url)
+        c.wait_for_selector('#view-guide:not([hidden])')
+        check('Library: scanning that label on a new phone opens the full guide', 'From the public library' in c.text_content('#unsaved-text') and c.evaluate("document.querySelector('#guide-frame').contentDocument.querySelectorAll('ol.steps li').length") == 40)
+        cc.close()
+
+        # ---------- reports hide a guide
+        browse(b, 'boiler')
+        b.click('#browse-list .guide-row')
+        b.wait_for_selector('#view-guide:not([hidden])')
+        b.click('#act-report')
+        b.wait_for_selector('#confirm-dialog[open]')
+        b.click('#confirm-ok')
+        wait_toast(b, 'reported')
+        check('Library: Report sends one report and disables the button', b.is_disabled('#act-report'))
+        boiler_id = lib.rpc('search_guides', {'q': 'boiler'})[0]['id']
+        for d in ['device-test-0001', 'device-test-0002']:
+            lib.rpc('report_guide', {'p_id': boiler_id, 'p_reporter': d, 'p_reason': 'test'})
+        browse(b, 'boiler')
+        check('Library: a guide with 3 reports disappears from Browse', 'No Results' in b.text_content('#browse-empty-title'))
+
+        # ---------- phone A removes the parking guide
+        a.click('#nav-library')
+        a.click('#guide-list li:has-text("parking")')
+        a.click('#act-unpublish')
+        a.wait_for_selector('#confirm-dialog[open]')
+        a.click('#confirm-ok')
+        wait_toast(a, 'Removed')
+        check('Library: Remove from Library takes it out of Browse', lib.rpc('search_guides', {'q': 'parking'}) == [] and a.text_content('#act-publish').strip() == 'Publish to Library')
+        check('Library: downloaded copies stay on other phones', b.evaluate('HTU.dbAll().then(a => a.length)') == 1)
+        a.click('#nav-settings')
+        a.wait_for_function("document.querySelector('#lib-published').textContent === '1 guide'")
+        check('Library: Settings shows connection and how many you published', a.text_content('#lib-status') == 'Connected')
+
+        # ---------- offline and unreachable
+        cb.set_offline(True)
+        browse(b, 'anything')
+        check('Library: offline, Browse explains and offers Try Again', 'offline' in b.text_content('#browse-empty-text') and b.is_visible('#browse-retry'))
+        cb.set_offline(False)
+        cd, dpage = phone(config="window.HTU_CONFIG = { libraryRest: 'http://127.0.0.1:9' };")
+        browse(dpage, 'x')
+        check('Library: if the library can’t be reached, Browse says so', 'Couldn’t reach the library' in dpage.text_content('#browse-empty-text'))
+        cd.close(); ca.close(); cb.close()
+        real = [e for e in errors if 'Failed to load resource' not in e and 'ERR_' not in e and 'favicon' not in e]
+        check('Library: no JavaScript errors', not real, real[:5])
+    finally:
+        lib.stop()
 
 if __name__ == '__main__':
     main()

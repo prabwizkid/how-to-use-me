@@ -14,7 +14,7 @@
   --orange: #FF9500;
   --purple: #AF52DE;
   --gray: #8E8E93;
-  --bar: rgba(249, 249, 249, .82);
+  --bar: rgba(249, 249, 249, .94);
   --press: rgba(0, 0, 0, .06);
   --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -37,7 +37,7 @@
     --green: #30D158;
     --orange: #FF9F0A;
     --purple: #BF5AF2;
-    --bar: rgba(22, 22, 24, .8);
+    --bar: rgba(22, 22, 24, .92);
     --press: rgba(255, 255, 255, .08);
     color-scheme: dark;
   }
@@ -301,7 +301,7 @@ body.editing .tabbar { display: none; }
 .photo .rm { width: 100%; min-height: 34px; margin-top: 2px; border: 0; background: none; color: var(--red); font-size: 15px; cursor: pointer; }
 
 .page-frame { display: block; width: 100%; min-height: 320px; border: 0; border-radius: 12px; background: #fff; margin-top: 22px; }
-#guide-frame { background: transparent; color-scheme: light dark; min-height: 200px; }
+#guide-frame { background: transparent; color-scheme: light dark; min-height: 0; }
 .row-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .row.field.tall .row-label, .row-label:only-child { white-space: normal; }
 
@@ -393,6 +393,11 @@ body.editing .tabbar { display: none; }
 .alert-actions button { min-height: 44px; border: 0; background: none; color: var(--blue); font-size: 17px; cursor: pointer; }
 .alert-actions button + button { border-left: .5px solid var(--sep); }
 .alert-actions .destructive { color: var(--red); font-weight: 600; }
+.alert-actions .strong { font-weight: 600; }
+[aria-busy="true"] { opacity: .5; transition: opacity .2s; }
+#guide-publish, #guide-report { margin-top: 22px; }
+.row:disabled { opacity: .45; cursor: default; }
+#browse-footer { margin-top: 18px; }
 .alert-actions button:active { background: var(--press); }
 
 #toast {
